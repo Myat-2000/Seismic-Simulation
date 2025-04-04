@@ -55,8 +55,6 @@ export default function BuildingAnalysisResults({
 }: BuildingAnalysisResultsProps) {
   const {
     height,
-    width,
-    depth,
     floors,
     stiffness,
     dampingRatio,

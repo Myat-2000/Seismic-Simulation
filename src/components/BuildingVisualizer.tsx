@@ -226,8 +226,19 @@ export default function BuildingVisualizer({
   
   // Calculate dimensions
   const floorHeight = height / floors;
-  const columnCount = { x: 3, z: 3 }; // Number of columns in each direction
-  const columnSpacing = { x: width / (columnCount.x - 1), z: depth / (columnCount.z - 1) };
+  
+  // Memoize columnCount to prevent re-creation on each render
+  const columnCount = useMemo(() => ({ 
+    x: 3, 
+    z: 3 
+  }), []);
+  
+  // Memoize columnSpacing to prevent re-creation on each render
+  const columnSpacing = useMemo(() => ({ 
+    x: width / (columnCount.x - 1), 
+    z: depth / (columnCount.z - 1) 
+  }), [width, depth, columnCount]);
+  
   const columnRadius = Math.min(width, depth) * 0.03;
   const beamHeight = floorHeight * 0.2;
   const beamWidth = columnRadius * 1.5;
@@ -486,9 +497,6 @@ export default function BuildingVisualizer({
   
   // Calculate risk level based on building and seismic parameters
   const getRiskLevel = () => {
-    // Calculate natural period of the building (simplified)
-    const naturalPeriod = 0.1 * floors;
-    
     // Structural vulnerability factor
     const vulnerabilityFactor = ((10 - stiffness) / 10) * (1 / dampingRatio) / 20;
     
@@ -517,7 +525,7 @@ export default function BuildingVisualizer({
   );
   
   // Create deformation details for visualization
-  const getDeformedGeometry = (damage: number, elementType: 'column' | 'beam' | 'slab') => {
+  const getDeformedGeometry = (damage: number) => {
     // Base deformation (undamaged = 0, collapsed = 1)
     const baseDeformation = hasFailed ? Math.min(1.0, elapsedTime / 5) : 0;
     
@@ -565,7 +573,7 @@ export default function BuildingVisualizer({
       );
       
       // Get deformation details for visualization
-      const deformation = getDeformedGeometry(floorDamage, 'slab');
+      const deformation = getDeformedGeometry(floorDamage);
       
       // Add vertical displacement with progressive collapse effect for failed buildings
       let verticalDisplacement = Math.sin(elapsedTime * 5 + i * 0.5) * magnitude * 0.02 * 
@@ -613,7 +621,7 @@ export default function BuildingVisualizer({
         );
         
         // Get deformation details
-        const colDeformation = getDeformedGeometry(columnDamage, 'column');
+        const colDeformation = getDeformedGeometry(columnDamage);
         
         // Add variation to make columns deform differently
         const variationFactor = Math.sin(colIdx * 5.3 + i * 3.7) * 0.5 + 0.5;
@@ -676,7 +684,7 @@ export default function BuildingVisualizer({
         );
         
         // Get deformation details
-        const beamDeformation = getDeformedGeometry(beamDamage, 'beam');
+        const beamDeformation = getDeformedGeometry(beamDamage);
         
         // Calculate beam original position
         const beamX = Math.floor(beamIdx / (columnCount.z - 1));
@@ -726,7 +734,7 @@ export default function BuildingVisualizer({
         );
         
         // Get deformation details
-        const beamDeformation = getDeformedGeometry(beamDamage, 'beam');
+        const beamDeformation = getDeformedGeometry(beamDamage);
         
         // Calculate beam original position
         const beamX = Math.floor(beamIdx / columnCount.z);

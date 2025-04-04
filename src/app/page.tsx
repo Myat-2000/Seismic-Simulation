@@ -15,7 +15,6 @@ const CombinedSimulator = dynamic(() => import('../components/CombinedSimulator'
 
 export default function Home() {
   // Simulation states
-  const [simulationActive, setSimulationActive] = useState(false);
   const [simulationStep, setSimulationStep] = useState<'seismic' | 'building' | 'running'>('seismic');
   
   // Parameter states
@@ -47,7 +46,6 @@ export default function Home() {
     }
     
     // Activate simulation
-    setSimulationActive(true);
     setSimulationStep('running');
     
     // Start timer
@@ -70,7 +68,6 @@ export default function Home() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setSimulationActive(false);
     setSimulationStep('seismic');
   };
   
