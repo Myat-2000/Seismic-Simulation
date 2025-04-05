@@ -3,6 +3,9 @@ import { OrbitControls, PerspectiveCamera, Stats, Environment, Grid } from "@rea
 import { BuildingParams } from "./BuildingParameterForm";
 import { SeismicParams } from "./SeismicParameterForm";
 import BuildingVisualizer from "./BuildingVisualizer";
+import GroundWaveEffect from "./GroundWaveEffect";
+import SeismicWaves from "./SeismicWaves";
+import WaveParticles from "./WaveParticles";
 import { useState } from "react";
 
 type CombinedSimulatorProps = {
@@ -38,13 +41,14 @@ export default function CombinedSimulator({
   seismicParams,
   elapsedTime
 }: CombinedSimulatorProps) {
-  // Camera position state - removed seismic view option
-  const [cameraView, setCameraView] = useState<"building" | "combined" | "damage">("building");
+  // Camera position state with added seismic view option
+  const [cameraView, setCameraView] = useState<"building" | "combined" | "damage" | "seismic">("building");
   
   // Helper function to get camera position based on view mode
   const getCameraPosition = () => {
     const { height, width, depth } = buildingParams;
     const maxDimension = Math.max(height, width, depth);
+    const { epicenterX, epicenterY, magnitude } = seismicParams;
     
     switch (cameraView) {
       case "damage":
@@ -52,6 +56,9 @@ export default function CombinedSimulator({
         return [width / 2, height / 3, depth / 2] as [number, number, number];
       case "combined":
         return [maxDimension, maxDimension * 0.75, maxDimension * 1.5] as [number, number, number];
+      case "seismic":
+        // Elevated view centered on the epicenter to see wave propagation
+        return [epicenterX, magnitude * 5, epicenterY + magnitude * 3] as [number, number, number];
       case "building":
       default:
         return [0, height / 2, maxDimension * 1.5] as [number, number, number];
@@ -61,11 +68,15 @@ export default function CombinedSimulator({
   // Helper function to get camera target position
   const getCameraTarget = () => {
     const { height } = buildingParams;
+    const { epicenterX, epicenterY } = seismicParams;
     
     switch (cameraView) {
       case "damage":
         // Focus on the building's mid-height
         return [0, height / 3, 0] as [number, number, number];
+      case "seismic":
+        // Focus on the epicenter
+        return [epicenterX, 0, epicenterY] as [number, number, number];
       default:
         // Default target
         return [0, height / 4, 0] as [number, number, number];
@@ -77,46 +88,47 @@ export default function CombinedSimulator({
   
   return (
     <div className="relative w-full h-full">
-      {/* View selector - removed seismic waves option */}
-      <div className="absolute top-4 right-4 z-10 flex space-x-2">
+      {/* View selector with improved styling */}
+      <div className="absolute top-4 right-4 z-10 view-controls">
         <button
           onClick={() => setCameraView("building")}
-          className={`px-2 py-1 text-xs rounded-md ${
-            cameraView === "building"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white"
-          }`}
+          className={`view-control-btn ${cameraView === "building" ? "active" : ""}`}
+          aria-label="Building Focus View"
         >
           Building Focus
         </button>
         <button
           onClick={() => setCameraView("combined")}
-          className={`px-2 py-1 text-xs rounded-md ${
-            cameraView === "combined"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white"
-          }`}
+          className={`view-control-btn ${cameraView === "combined" ? "active" : ""}`}
+          aria-label="Wide View"
         >
           Wide View
         </button>
         <button
           onClick={() => setCameraView("damage")}
-          className={`px-2 py-1 text-xs rounded-md ${
-            cameraView === "damage"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white"
-          }`}
+          className={`view-control-btn ${cameraView === "damage" ? "active" : ""}`}
+          aria-label="Damage Details View"
         >
           Damage Details
         </button>
+        <button
+          onClick={() => setCameraView("seismic")}
+          className={`view-control-btn ${cameraView === "seismic" ? "active" : ""}`}
+          aria-label="Seismic Waves View"
+        >
+          Seismic Waves
+        </button>
       </div>
       
-      {/* Instructions for user */}
-      <div className="absolute bottom-4 left-4 z-10 bg-black/50 text-white p-2 rounded text-xs max-w-xs">
-        <p className="font-bold mb-1">Controls:</p>
-        <p>• Drag to rotate view</p>
-        <p>• Scroll to zoom</p>
-        <p>• Right-click + drag to pan</p>
+      {/* Enhanced instructions for user */}
+      <div className="absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm max-w-xs shadow-lg">
+        <p className="font-bold mb-2">Controls:</p>
+        <div className="space-y-1">
+          <p>• <span className="text-primary-light">Drag</span> to rotate view</p>
+          <p>• <span className="text-primary-light">Scroll</span> to zoom in/out</p>
+          <p>• <span className="text-primary-light">Right-click + drag</span> to pan</p>
+          <p>• <span className="text-primary-light">Double-click</span> to reset view</p>
+        </div>
       </div>
       
       <Canvas shadows>
@@ -148,8 +160,8 @@ export default function CombinedSimulator({
           args={['#cef', '#357', 0.4]}
         />
         
-        {/* Simple ground with grid */}
-        <SimplifiedGround />
+        {/* Enhanced ground with wave effect */}
+        <GroundWaveEffect params={seismicParams} elapsedTime={elapsedTime} />
         <Grid 
           args={[500, 500]} 
           position={[0, -0.49, 0]} 
@@ -158,6 +170,12 @@ export default function CombinedSimulator({
           fadeDistance={100}
           fadeStrength={1}
         />
+        
+        {/* Seismic wave visualization */}
+        <SeismicWaves params={seismicParams} elapsedTime={elapsedTime} />
+        
+        {/* Particle effects for additional visual impact */}
+        <WaveParticles params={seismicParams} />
         
         {/* Building visualization - focus of the simulation */}
         <BuildingVisualizer
@@ -183,4 +201,4 @@ export default function CombinedSimulator({
       </Canvas>
     </div>
   );
-} 
+}

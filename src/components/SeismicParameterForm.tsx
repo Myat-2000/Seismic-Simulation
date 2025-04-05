@@ -87,7 +87,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             step="0.5"
             value={params.depth}
             onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full"
           />
         </div>
         
@@ -104,7 +104,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             step="0.5"
             value={params.epicenterX}
             onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full"
           />
         </div>
         
@@ -121,7 +121,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             step="0.5"
             value={params.epicenterY}
             onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full"
           />
         </div>
         
@@ -138,7 +138,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             step="0.1"
             value={params.waveVelocity}
             onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full"
           />
         </div>
         
@@ -155,7 +155,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             step="1"
             value={params.duration}
             onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full"
           />
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             name="showGrid"
             checked={params.showGrid}
             onChange={handleChange}
-            className="mr-2 h-4 w-4"
+            className="mr-2 h-5 w-5 accent-primary"
           />
           <label htmlFor="showGrid" className="font-medium">
             Show Grid
@@ -182,7 +182,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
             name="showStats"
             checked={params.showStats}
             onChange={handleChange}
-            className="mr-2 h-4 w-4"
+            className="mr-2 h-5 w-5 accent-primary"
           />
           <label htmlFor="showStats" className="font-medium">
             Show Performance Stats
@@ -200,4 +200,4 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
       </div>
     </form>
   );
-} 
+}

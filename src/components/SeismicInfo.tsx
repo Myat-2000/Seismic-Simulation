@@ -14,10 +14,10 @@ export default function SeismicInfo({ params, elapsedTime }: SeismicInfoProps) {
   const richterScale = getRichterDescription(magnitude);
   
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 space-y-3">
+    <div className="card p-4 space-y-3">
       <h2 className="text-xl font-bold border-b pb-2">Earthquake Information</h2>
       
-      <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="font-medium">Magnitude:</div>
         <div className="text-right">{magnitude.toFixed(1)}</div>
         
@@ -37,14 +37,14 @@ export default function SeismicInfo({ params, elapsedTime }: SeismicInfoProps) {
         <div className="text-right">{elapsedTime.toFixed(1)} s</div>
       </div>
       
-      <div className="mt-4 pt-2 border-t">
+      <div className="mt-4 pt-3 border-t">
         <div className="font-medium mb-1">Richter Scale:</div>
-        <div className="text-sm">{richterScale}</div>
+        <div className="text-sm p-2 bg-gray-100 dark:bg-gray-700 rounded-md">{richterScale}</div>
       </div>
       
-      <div className="mt-2">
+      <div className="mt-3">
         <div className="font-medium mb-1">Potential Damage:</div>
-        <div className="text-sm">{potentialDamage}</div>
+        <div className="text-sm p-2 bg-gray-100 dark:bg-gray-700 rounded-md">{potentialDamage}</div>
       </div>
     </div>
   );
@@ -84,4 +84,4 @@ function getRichterDescription(magnitude: number): string {
   } else {
     return "Great (≥ 8.0)";
   }
-} 
+}
