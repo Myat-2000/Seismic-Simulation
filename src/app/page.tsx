@@ -7,10 +7,10 @@ import BuildingParameterForm, { BuildingParams } from '../components/BuildingPar
 import SeismicInfo from '../components/SeismicInfo';
 import BuildingAnalysisResults from '../components/BuildingAnalysisResults';
 
-// Dynamically import the 3D visualizer to avoid server-side rendering issues
-const CombinedSimulator = dynamic(() => import('../components/CombinedSimulator'), {
+// Dynamically import the Safe 3D visualizer to avoid server-side rendering issues
+const SafeSimulator = dynamic(() => import('../components/SafeSimulator'), {
   ssr: false,
-  loading: () => <div className="w-full h-full flex items-center justify-center">Loading 3D Visualizer...</div>
+  loading: () => <div className="w-full h-full flex items-center justify-center">Loading visualizer...</div>
 });
 
 export default function Home() {
@@ -189,7 +189,7 @@ export default function Home() {
           <div className="lg:col-span-2 card overflow-hidden">
             <div className="h-[600px]">
               {simulationStep === 'running' && seismicParams && buildingParams ? (
-                <CombinedSimulator
+                <SafeSimulator
                   seismicParams={seismicParams}
                   buildingParams={buildingParams}
                   elapsedTime={elapsedTime}

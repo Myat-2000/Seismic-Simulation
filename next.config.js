@@ -12,6 +12,18 @@ const nextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
+  // Disable image optimizer to ensure broader browser compatibility
+  images: {
+    unoptimized: true,
+  },
+  experimental: {
+    // Disable shared Runtime (improved compatibility)
+    disableSharedWorkersRuntime: true,
+  },
+  // Future settings
+  future: {
+    webpack5: true,
+  },
 }
 
 module.exports = nextConfig 
