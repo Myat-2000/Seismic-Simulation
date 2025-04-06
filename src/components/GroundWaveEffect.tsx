@@ -9,22 +9,23 @@ type GroundWaveEffectProps = {
 };
 
 export default function GroundWaveEffect({ params, elapsedTime }: GroundWaveEffectProps) {
-  const { magnitude, epicenterX, epicenterY, waveVelocity, depth } = params;
+  const { magnitude, epicenterX, epicenterY } = params;
   
   // Mesh reference for the ground plane
   const meshRef = useRef<THREE.Mesh>(null);
   
-  // Create ground geometry with higher resolution for better wave visualization
+  // Create ground geometry with reduced resolution for better performance
   const geometry = useMemo(() => {
-    // Scale grid size based on magnitude
-    const size = Math.max(100, magnitude * 20);
-    const resolution = Math.max(64, Math.floor(magnitude * 10)); // Higher resolution for larger magnitudes
+    // Fixed size ground plane
+    const size = 100;
+    // Lower resolution (fewer segments)
+    const resolution = 32;
     
-    // Create a plane geometry with high segment count for detailed deformation
+    // Create a plane geometry with fewer segments
     return new THREE.PlaneGeometry(size, size, resolution, resolution);
-  }, [magnitude]);
+  }, []);
   
-  // Create material with custom shader for wave effect
+  // Create material with simpler settings
   const material = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: '#555555',
@@ -32,76 +33,50 @@ export default function GroundWaveEffect({ params, elapsedTime }: GroundWaveEffe
       roughness: 0.8,
       wireframe: false,
       side: THREE.DoubleSide,
-      flatShading: true,
+      flatShading: false, // Don't use flat shading for better performance
     });
   }, []);
   
-  // Animation for ground deformation
+  // Simplified animation for ground deformation
   useFrame(() => {
     if (!meshRef.current) return;
     
     const mesh = meshRef.current;
     const positions = mesh.geometry.attributes.position.array as Float32Array;
     
-    // Calculate wave parameters
-    const waveAmplitude = magnitude * 0.05; // Scale amplitude with magnitude
-    const waveSpeed = waveVelocity * 2; // Wave propagation speed
-    const waveFrequency = 0.8; // Wave frequency
-    const decayFactor = 0.3; // How quickly waves decay with distance
+    // Simplified wave parameters
+    const waveAmplitude = magnitude * 0.03; // Reduced amplitude
+    const waveFrequency = 0.6; // Reduced frequency
     
-    // P-wave and S-wave speeds (P-waves are faster)
-    const pWaveSpeed = waveSpeed;
-    const sWaveSpeed = waveSpeed * 0.6;
-    
-    // P-wave and S-wave radii (distance traveled)
-    const pWaveRadius = elapsedTime * pWaveSpeed;
-    const sWaveRadius = elapsedTime * sWaveSpeed;
-    
-    // Update each vertex position
-    for (let i = 0; i < positions.length; i += 3) {
-      const x = positions[i];
-      const z = positions[i + 2];
-      
-      // Calculate distance from epicenter
-      const dx = x - epicenterX;
-      const dz = z - epicenterY;
-      const distance = Math.sqrt(dx * dx + dz * dz);
-      
-      // No deformation for vertices very close to epicenter (avoid singularity)
-      if (distance < 1) {
-        positions[i + 1] = -Math.sin(elapsedTime * 5) * waveAmplitude * 2;
-        continue;
+    // Only update every frame if time is less than 70% of the duration
+    // This focuses animation on the beginning of the simulation
+    if (elapsedTime < params.duration * 0.7) {
+      // Update each vertex position with simpler calculation
+      for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i];
+        const z = positions[i + 2];
+        
+        // Calculate distance from epicenter
+        const dx = x - epicenterX;
+        const dz = z - epicenterY;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        // Simple wave effect based on distance and time
+        const distanceEffect = Math.max(0, 1 - distance / (magnitude * 10));
+        const wave = Math.sin(distance - elapsedTime * 5) * distanceEffect;
+        
+        // Apply vertical displacement (much simpler calculation)
+        positions[i + 1] = wave * waveAmplitude;
       }
       
-      // Calculate P-wave effect (compressional wave)
-      const pWaveDistFromRadius = Math.abs(distance - pWaveRadius);
-      const pWaveEffect = Math.exp(-pWaveDistFromRadius * decayFactor) * 
-                         Math.sin(distance * waveFrequency - elapsedTime * 10);
+      // Update geometry
+      mesh.geometry.attributes.position.needsUpdate = true;
       
-      // Calculate S-wave effect (shear wave) - follows P-wave
-      const sWaveDistFromRadius = Math.abs(distance - sWaveRadius);
-      const sWaveEffect = Math.exp(-sWaveDistFromRadius * decayFactor * 1.5) * 
-                         Math.sin(distance * waveFrequency * 1.5 - elapsedTime * 8);
-      
-      // Combine wave effects with distance-based decay
-      const distanceDecay = Math.max(0, 1 - distance / (magnitude * 15));
-      const combinedEffect = (pWaveEffect * 0.6 + sWaveEffect * 0.4) * distanceDecay;
-      
-      // Apply vertical displacement
-      positions[i + 1] = combinedEffect * waveAmplitude;
-      
-      // Add epicenter depression effect
-      if (distance < magnitude * 2) {
-        const craterEffect = -Math.exp(-distance * 0.5) * magnitude * 0.1;
-        positions[i + 1] += craterEffect;
+      // Only compute normals when needed
+      if (elapsedTime % 0.2 < 0.01) { // Only recompute normals every 0.2 seconds
+        mesh.geometry.computeVertexNormals();
       }
     }
-    
-    // Update geometry
-    mesh.geometry.attributes.position.needsUpdate = true;
-    
-    // Compute normals for proper lighting
-    mesh.geometry.computeVertexNormals();
   });
   
   return (
@@ -110,7 +85,6 @@ export default function GroundWaveEffect({ params, elapsedTime }: GroundWaveEffe
       rotation={[-Math.PI / 2, 0, 0]}
       position={[0, -0.5, 0]}
       receiveShadow
-      castShadow
     >
       <primitive object={geometry} attach="geometry" />
       <primitive object={material} attach="material" />

@@ -15,15 +15,8 @@ const nextConfig = {
   // Disable image optimizer to ensure broader browser compatibility
   images: {
     unoptimized: true,
-  },
-  experimental: {
-    // Disable shared Runtime (improved compatibility)
-    disableSharedWorkersRuntime: true,
-  },
-  // Future settings
-  future: {
-    webpack5: true,
-  },
+  }
+  // Removed incompatible experimental and future options
 }
 
 module.exports = nextConfig 

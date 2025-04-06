@@ -6,8 +6,7 @@ import { BuildingParams } from "./BuildingParameterForm";
 import { SeismicParams } from "./SeismicParameterForm";
 import BuildingVisualizer from "./BuildingVisualizer";
 import GroundWaveEffect from "./GroundWaveEffect";
-import SeismicWaves from "./SeismicWaves";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as THREE from 'three';
 import { WebGLRenderer } from 'three';
 
@@ -125,20 +124,57 @@ export default function CombinedSimulator({
   seismicParams,
   elapsedTime
 }: CombinedSimulatorProps) {
-  // Camera position state with added seismic view option
-  const [cameraView, setCameraView] = useState<"building" | "combined" | "damage" | "seismic">("building");
+  // Camera position state with modified view options (removed seismic)
+  const [cameraView, setCameraView] = useState<"building" | "combined" | "damage">("building");
   
   // Simulation speed control state
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1.0);
+
+  // UI state for showing/hiding controls
+  const [showControls, setShowControls] = useState(true);
+  
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Ref for the container element to make fullscreen
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Get performance mode based on device capabilities
   const performanceMode = usePerformanceMode();
+  
+  // Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch(err => {
+        console.error(`Error attempting to exit fullscreen: ${err.message}`);
+      });
+    }
+  }, []);
+  
+  // Update fullscreen state when exiting via Escape key
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
   
   // Helper function to get camera position based on view mode
   const getCameraPosition = () => {
     const { height, width, depth } = buildingParams;
     const maxDimension = Math.max(height, width, depth);
-    const { epicenterX, epicenterY, magnitude } = seismicParams;
     
     switch (cameraView) {
       case "damage":
@@ -146,9 +182,6 @@ export default function CombinedSimulator({
         return [width / 2, height / 3, depth / 2] as [number, number, number];
       case "combined":
         return [maxDimension, maxDimension * 0.75, maxDimension * 1.5] as [number, number, number];
-      case "seismic":
-        // Elevated view centered on the epicenter to see wave propagation
-        return [epicenterX, magnitude * 5, epicenterY + magnitude * 3] as [number, number, number];
       case "building":
       default:
         return [0, height / 2, maxDimension * 1.5] as [number, number, number];
@@ -158,15 +191,11 @@ export default function CombinedSimulator({
   // Helper function to get camera target position
   const getCameraTarget = () => {
     const { height } = buildingParams;
-    const { epicenterX, epicenterY } = seismicParams;
     
     switch (cameraView) {
       case "damage":
         // Focus on the building's mid-height
         return [0, height / 3, 0] as [number, number, number];
-      case "seismic":
-        // Focus on the epicenter
-        return [epicenterX, 0, epicenterY] as [number, number, number];
       default:
         // Default target
         return [0, height / 4, 0] as [number, number, number];
@@ -175,65 +204,189 @@ export default function CombinedSimulator({
   
   const cameraPosition = getCameraPosition();
   const cameraTarget = getCameraTarget();
+
+  // Calculate progress percentage
+  const progressPercentage = Math.min(100, Math.floor((elapsedTime / seismicParams.duration) * 100));
+
+  // Calculate intensity based on elapsed time and magnitude
+  const currentIntensity = elapsedTime > 0 
+    ? Math.max(0, Math.sin(elapsedTime * 2) * seismicParams.magnitude / 10)
+    : 0;
+
+  const intensityLevel = currentIntensity < 0.2 ? 'Low' : 
+                        currentIntensity < 0.5 ? 'Moderate' : 
+                        currentIntensity < 0.7 ? 'High' : 'Severe';
   
   return (
-    <div className="relative w-full h-full">
-      {/* View selector with improved styling */}
-      <div className="absolute top-4 right-4 z-10 view-controls">
-        <button
-          onClick={() => setCameraView("building")}
-          className={`view-control-btn ${cameraView === "building" ? "active" : ""}`}
-          aria-label="Building Focus View"
-        >
-          Building Focus
-        </button>
-        <button
-          onClick={() => setCameraView("combined")}
-          className={`view-control-btn ${cameraView === "combined" ? "active" : ""}`}
-          aria-label="Wide View"
-        >
-          Wide View
-        </button>
-        <button
-          onClick={() => setCameraView("damage")}
-          className={`view-control-btn ${cameraView === "damage" ? "active" : ""}`}
-          aria-label="Damage Details View"
-        >
-          Damage Details
-        </button>
-        <button
-          onClick={() => setCameraView("seismic")}
-          className={`view-control-btn ${cameraView === "seismic" ? "active" : ""}`}
-          aria-label="Seismic Waves View"
-        >
-          Seismic Waves
-        </button>
-      </div>
+    <div ref={containerRef} className={`relative w-full h-full ${isFullscreen ? 'bg-black' : ''}`}>
+      {/* Toggle controls button */}
+      <button 
+        onClick={() => setShowControls(prev => !prev)}
+        className="absolute top-2 right-2 z-20 bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/90 transition-all"
+        aria-label={showControls ? "Hide Controls" : "Show Controls"}
+      >
+        {showControls ? "✕" : "≡"}
+      </button>
       
-      {/* Simulation speed control */}
-      <div className="absolute top-4 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm shadow-lg">
-        <p className="font-bold mb-2">Simulation Speed: {simulationSpeed.toFixed(1)}x</p>
-        <input
-          type="range"
-          min="0.1"
-          max="2"
-          step="0.1"
-          value={simulationSpeed}
-          onChange={(e) => setSimulationSpeed(parseFloat(e.target.value))}
-          className="w-full"
+      {/* Fullscreen toggle button */}
+      <button 
+        onClick={toggleFullscreen}
+        className="absolute top-2 right-12 z-20 bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/90 transition-all"
+        aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+      >
+        {isFullscreen ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+          </svg>
+        )}
+      </button>
+
+      {/* Simulation progress bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gray-700 z-10">
+        <div 
+          className="h-full bg-blue-500 transition-all duration-300 ease-linear"
+          style={{ width: `${progressPercentage}%` }}
         />
       </div>
-      
-      {/* Enhanced instructions for user */}
-      <div className="absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm max-w-xs shadow-lg">
-        <p className="font-bold mb-2">Controls:</p>
-        <div className="space-y-1">
-          <p>• <span className="text-primary-light">Drag</span> to rotate view</p>
-          <p>• <span className="text-primary-light">Scroll</span> to zoom in/out</p>
-          <p>• <span className="text-primary-light">Right-click + drag</span> to pan</p>
-          <p>• <span className="text-primary-light">Double-click</span> to reset view</p>
+
+      {/* Current intensity indicator */}
+      <div className="absolute top-10 right-4 z-10 bg-black/70 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm">
+        <div className="flex items-center gap-2">
+          <span>Intensity:</span>
+          <span className={`font-bold ${
+            intensityLevel === 'Low' ? 'text-green-400' : 
+            intensityLevel === 'Moderate' ? 'text-yellow-400' : 
+            intensityLevel === 'High' ? 'text-orange-400' : 'text-red-400'
+          }`}>
+            {intensityLevel}
+          </span>
+          <div className="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className={`h-full ${
+                intensityLevel === 'Low' ? 'bg-green-400' : 
+                intensityLevel === 'Moderate' ? 'bg-yellow-400' : 
+                intensityLevel === 'High' ? 'bg-orange-400' : 'bg-red-400'
+              }`} 
+              style={{ width: `${currentIntensity * 100}%` }}
+            />
+          </div>
         </div>
       </div>
+      
+      {showControls && (
+        <>
+          {/* Improved view selector with icons */}
+          <div className="absolute top-4 right-24 z-10 view-controls flex gap-2">
+            <button
+              onClick={() => setCameraView("building")}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
+                cameraView === "building" 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-black/50 text-white/80 hover:bg-black/70"
+              }`}
+              aria-label="Building Focus View"
+            >
+              <span>🏢</span> Building
+            </button>
+            <button
+              onClick={() => setCameraView("combined")}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
+                cameraView === "combined" 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-black/50 text-white/80 hover:bg-black/70"
+              }`}
+              aria-label="Wide View"
+            >
+              <span>🔍</span> Wide View
+            </button>
+            <button
+              onClick={() => setCameraView("damage")}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
+                cameraView === "damage" 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-black/50 text-white/80 hover:bg-black/70"
+              }`}
+              aria-label="Damage Details View"
+            >
+              <span>⚠️</span> Damage
+            </button>
+          </div>
+          
+          {/* Simulation speed control with visual indicator */}
+          <div className="absolute top-20 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm shadow-lg w-48">
+            <div className="flex justify-between items-center mb-1">
+              <p className="font-medium">Simulation Speed</p>
+              <span className="font-mono bg-black/50 px-2 py-0.5 rounded text-xs">{simulationSpeed.toFixed(1)}x</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setSimulationSpeed(prev => Math.max(0.1, prev - 0.1))}
+                className="w-6 h-6 flex items-center justify-center bg-gray-700 rounded hover:bg-gray-600"
+              >-</button>
+              <input
+                type="range"
+                min="0.1"
+                max="2"
+                step="0.1"
+                value={simulationSpeed}
+                onChange={(e) => setSimulationSpeed(parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <button 
+                onClick={() => setSimulationSpeed(prev => Math.min(2, prev + 0.1))}
+                className="w-6 h-6 flex items-center justify-center bg-gray-700 rounded hover:bg-gray-600"
+              >+</button>
+            </div>
+            <div className="mt-1 flex justify-between text-xs text-gray-400">
+              <span>Slow</span>
+              <span>Normal</span>
+              <span>Fast</span>
+            </div>
+          </div>
+          
+          {/* Enhanced instructions with better styling */}
+          <div className="absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm max-w-xs shadow-lg border border-gray-700">
+            <p className="font-bold mb-2 flex items-center gap-2">
+              <span className="bg-blue-600 w-5 h-5 rounded-full flex items-center justify-center text-xs">?</span>
+              Camera Controls
+            </p>
+            <div className="space-y-1.5">
+              <p className="flex items-center gap-2">
+                <span className="bg-gray-700 text-xs px-1.5 rounded">Click + Drag</span>
+                <span className="text-gray-300">Rotate view</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="bg-gray-700 text-xs px-1.5 rounded">Scroll</span>
+                <span className="text-gray-300">Zoom in/out</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="bg-gray-700 text-xs px-1.5 rounded">Right-click + Drag</span>
+                <span className="text-gray-300">Pan camera</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="bg-gray-700 text-xs px-1.5 rounded">Double-click</span>
+                <span className="text-gray-300">Reset view</span>
+              </p>
+            </div>
+          </div>
+          
+          {/* Fullscreen notice when in fullscreen mode */}
+          {isFullscreen && (
+            <div className="absolute bottom-4 right-4 z-10 bg-black/70 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-xs">
+              <p className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Press <span className="bg-gray-700 px-1.5 rounded mx-1">ESC</span> or click the button to exit fullscreen
+              </p>
+            </div>
+          )}
+        </>
+      )}
       
       <Canvas
         shadows={performanceMode !== 'low'} // Disable shadows in low performance mode
@@ -290,9 +443,6 @@ export default function CombinedSimulator({
           fadeDistance={100}
           fadeStrength={1}
         />
-        
-        {/* Seismic wave visualization */}
-        <SeismicWaves params={seismicParams} elapsedTime={elapsedTime * simulationSpeed} />
         
         {/* Building visualization - focus of the simulation */}
         <BuildingVisualizer
