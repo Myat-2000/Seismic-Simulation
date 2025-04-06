@@ -168,7 +168,7 @@ const hasBuildingCollapsed = (
   return collapseRisk > 0.5 && elapsedTime > collapseThreshold;
 };
 
-// Get damaged material appearance with enhanced deformation visualization
+// Get damaged material appearance with enhanced deformation visualization and improved color coding
 const getDamagedMaterial = (
   baseMaterial: {color: string, roughness: number, metalness: number},
   damage: number,
@@ -180,14 +180,30 @@ const getDamagedMaterial = (
   // If building has failed, intensify the damage appearance
   const effectiveDamage = hasFailed ? Math.min(1.0, damage * 1.5) : damage;
   
-  // For severe damage, add reddish tint
-  if (effectiveDamage > 0.7) {
-    const damageColor = new THREE.Color('#ff2000');
-    baseColor.lerp(damageColor, (effectiveDamage - 0.7) * 3);
+  // Enhanced color gradient based on damage level
+  // Green (safe) -> Yellow (moderate) -> Orange (significant) -> Red (severe)
+  if (effectiveDamage <= 0.3) {
+    // Safe to moderate damage - green to yellow gradient
+    const safeColor = new THREE.Color('#00cc00'); // Green
+    const moderateColor = new THREE.Color('#ffcc00'); // Yellow
+    const t = effectiveDamage / 0.3; // Normalized value for lerp
+    baseColor.copy(safeColor).lerp(moderateColor, t);
+  } else if (effectiveDamage <= 0.6) {
+    // Moderate to significant damage - yellow to orange gradient
+    const moderateColor = new THREE.Color('#ffcc00'); // Yellow
+    const significantColor = new THREE.Color('#ff6600'); // Orange
+    const t = (effectiveDamage - 0.3) / 0.3; // Normalized value for lerp
+    baseColor.copy(moderateColor).lerp(significantColor, t);
+  } else {
+    // Significant to severe damage - orange to red gradient
+    const significantColor = new THREE.Color('#ff6600'); // Orange
+    const severeColor = new THREE.Color('#ff0000'); // Red
+    const t = (effectiveDamage - 0.6) / 0.4; // Normalized value for lerp
+    baseColor.copy(significantColor).lerp(severeColor, t);
   }
   
   // For concrete/wood, add cracks via emissive
-  const emissiveIntensity = effectiveDamage > 0.4 ? (effectiveDamage - 0.4) * 0.4 : 0;
+  const emissiveIntensity = effectiveDamage > 0.4 ? (effectiveDamage - 0.4) * 0.5 : 0;
   const emissiveColor = new THREE.Color('#330000').multiplyScalar(emissiveIntensity);
   
   return {
@@ -773,12 +789,65 @@ export default function BuildingVisualizer({
   const statusMessage = hasFailed ? "BUILDING COLLAPSE" : `Risk: ${risk.level}`;
   const statusColor = hasFailed ? "#ff0000" : risk.color;
   
+  // Create damage level legend for visualization
+  const damageColorLegend = useMemo(() => {
+    // Only show legend if not collapsed
+    if (hasFailed) return null;
+    
+    const legendItems = [
+      { label: "Safe", color: "#00cc00" },
+      { label: "Moderate", color: "#ffcc00" },
+      { label: "Significant", color: "#ff6600" },
+      { label: "Severe", color: "#ff0000" }
+    ];
+    
+    const legendWidth = 10;
+    const itemHeight = 1.2;
+    const spacing = 0.3;
+    const totalHeight = legendItems.length * (itemHeight + spacing);
+    
+    return (
+      <group position={[width/2 + 10, height/2, 0]}>
+        <Text
+          position={[0, totalHeight/2 + 2, 0]}
+          fontSize={1.5}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Damage Level
+        </Text>
+        
+        {legendItems.map((item, index) => {
+          const yPos = totalHeight/2 - index * (itemHeight + spacing);
+          return (
+            <group key={`legend-${index}`} position={[0, yPos, 0]}>
+              <Box args={[legendWidth, itemHeight, 0.2]} position={[0, 0, 0]}>
+                <meshStandardMaterial color={item.color} />
+              </Box>
+              <Text
+                position={[0, 0, 0.2]}
+                fontSize={0.8}
+                color="white"
+                anchorX="center"
+                anchorY="middle"
+              >
+                {item.label}
+              </Text>
+            </group>
+          );
+        })}
+      </group>
+    );
+  }, [width, height, hasFailed]);
+  
   return (
     <group>
       {buildingBase}
       {floorMeshes}
       {columns}
       {beams}
+      {damageColorLegend}
       
       {/* Risk level or collapse indicator */}
       <Text
@@ -803,4 +872,4 @@ export default function BuildingVisualizer({
       </Text>
     </group>
   );
-} 
+}

@@ -5,7 +5,6 @@ import { SeismicParams } from "./SeismicParameterForm";
 import BuildingVisualizer from "./BuildingVisualizer";
 import GroundWaveEffect from "./GroundWaveEffect";
 import SeismicWaves from "./SeismicWaves";
-import WaveParticles from "./WaveParticles";
 import { useState } from "react";
 
 type CombinedSimulatorProps = {
@@ -43,6 +42,9 @@ export default function CombinedSimulator({
 }: CombinedSimulatorProps) {
   // Camera position state with added seismic view option
   const [cameraView, setCameraView] = useState<"building" | "combined" | "damage" | "seismic">("building");
+  
+  // Simulation speed control state
+  const [simulationSpeed, setSimulationSpeed] = useState<number>(1.0);
   
   // Helper function to get camera position based on view mode
   const getCameraPosition = () => {
@@ -120,6 +122,20 @@ export default function CombinedSimulator({
         </button>
       </div>
       
+      {/* Simulation speed control */}
+      <div className="absolute top-4 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm shadow-lg">
+        <p className="font-bold mb-2">Simulation Speed: {simulationSpeed.toFixed(1)}x</p>
+        <input
+          type="range"
+          min="0.1"
+          max="2"
+          step="0.1"
+          value={simulationSpeed}
+          onChange={(e) => setSimulationSpeed(parseFloat(e.target.value))}
+          className="w-full"
+        />
+      </div>
+      
       {/* Enhanced instructions for user */}
       <div className="absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-sm max-w-xs shadow-lg">
         <p className="font-bold mb-2">Controls:</p>
@@ -161,7 +177,7 @@ export default function CombinedSimulator({
         />
         
         {/* Enhanced ground with wave effect */}
-        <GroundWaveEffect params={seismicParams} elapsedTime={elapsedTime} />
+        <GroundWaveEffect params={seismicParams} elapsedTime={elapsedTime * simulationSpeed} />
         <Grid 
           args={[500, 500]} 
           position={[0, -0.49, 0]} 
@@ -172,16 +188,13 @@ export default function CombinedSimulator({
         />
         
         {/* Seismic wave visualization */}
-        <SeismicWaves params={seismicParams} elapsedTime={elapsedTime} />
-        
-        {/* Particle effects for additional visual impact */}
-        <WaveParticles params={seismicParams} />
+        <SeismicWaves params={seismicParams} elapsedTime={elapsedTime * simulationSpeed} />
         
         {/* Building visualization - focus of the simulation */}
         <BuildingVisualizer
           buildingParams={buildingParams}
           seismicParams={seismicParams}
-          elapsedTime={elapsedTime}
+          elapsedTime={elapsedTime * simulationSpeed}
         />
         
         {/* Environment for better lighting */}

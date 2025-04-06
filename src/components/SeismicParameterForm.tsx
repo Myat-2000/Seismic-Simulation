@@ -12,12 +12,12 @@ export type SeismicParams = {
 };
 
 const defaultParams: SeismicParams = {
-  magnitude: 5.5,
+  magnitude: 6.5,
   depth: 10,
   epicenterX: 0,
   epicenterY: 0,
   waveVelocity: 1.5,
-  duration: 30,
+  duration: 60,
   showGrid: true,
   showStats: false,
 };
