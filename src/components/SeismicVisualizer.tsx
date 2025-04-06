@@ -3,7 +3,6 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Grid, Stats } from "@react-three/drei";
 import * as THREE from "three";
 import { SeismicParams } from "./SeismicParameterForm";
-import WaveParticles from "./WaveParticles";
 
 function Ground({ size = 20, divisions = 20, showGrid }: { size?: number; divisions?: number; showGrid: boolean }) {
   if (!showGrid) return null;
@@ -57,7 +56,6 @@ export default function SeismicVisualizer({ params }: { params: SeismicParams })
           shadow-mapSize-height={1024}
         />
         <Camera />
-        <WaveParticles params={params} />
         <FaultLine params={params} />
         <Ground showGrid={params.showGrid} />
         <OrbitControls enableDamping dampingFactor={0.1} />
@@ -65,4 +63,4 @@ export default function SeismicVisualizer({ params }: { params: SeismicParams })
       </Canvas>
     </div>
   );
-} 
+}

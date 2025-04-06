@@ -77,6 +77,31 @@ export default function Home() {
     setSeismicParams(null);
     setBuildingParams(null);
   };
+  
+  // Handle replaying the simulation
+  const handleReplaySimulation = () => {
+    // Stop current timer if running
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Reset elapsed time
+    setElapsedTime(0);
+    
+    // Restart the timer
+    timerRef.current = setInterval(() => {
+      setElapsedTime(prev => {
+        const newTime = prev + 0.1;
+        // Stop simulation when duration is reached
+        if (seismicParams && newTime >= seismicParams.duration) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return seismicParams.duration;
+        }
+        return newTime;
+      });
+    }, 100);
+  };
 
   // Clean up timer when component unmounts
   useEffect(() => {
@@ -140,6 +165,13 @@ export default function Home() {
                     className="w-full btn btn-danger"
                   >
                     Stop Simulation
+                  </button>
+                  
+                  <button
+                    onClick={handleReplaySimulation}
+                    className="w-full btn btn-primary"
+                  >
+                    Replay Simulation
                   </button>
                   
                   <button

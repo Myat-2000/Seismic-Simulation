@@ -14,7 +14,7 @@ const defaultBuildingParams: BuildingParams = {
   height: 50,
   width: 20,
   depth: 20,
-  floors: 10,
+  floors: 6,
   stiffness: 5,
   dampingRatio: 0.05,
   materialType: 'concrete',
