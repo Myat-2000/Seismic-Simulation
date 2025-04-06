@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { BuildingParams } from './BuildingParameterForm';
 import { SeismicParams } from './SeismicParameterForm';
 import { isWebGLSupported, checkBrowserCompatibility, testWebGLCapabilities } from '../utils/browserCompatibilityCheck';
+import FallbackSimulator from './FallbackSimulator';
 
 // Dynamically import the 3D visualizer with no SSR
 const CombinedSimulator = dynamic(() => import('./CombinedSimulator'), {
@@ -25,19 +26,25 @@ type SafeSimulatorProps = {
   elapsedTime: number;
 };
 
-// Error boundary fallback component
-function ErrorFallback({ message }: { message?: string }) {
+// Error boundary fallback component - no longer needed as we'll use 2D fallback instead
+function ErrorFallback({ message, onTryFallback }: { message?: string; onTryFallback: () => void }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 p-8 text-center">
-      <h3 className="text-xl font-bold text-red-600 mb-4">Visualization Error</h3>
+      <h3 className="text-xl font-bold text-red-600 mb-4">3D Visualization Error</h3>
       <p className="mb-4">
-        {message || "Sorry, we couldn't load the 3D visualization."}
+        {message || "We couldn't load the 3D visualization."}
       </p>
+      <button 
+        onClick={onTryFallback}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-6"
+      >
+        Use 2D Visualization Instead
+      </button>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
         This might be due to WebGL not being supported in your browser or device.
       </p>
       <div className="bg-white dark:bg-gray-700 p-4 rounded-lg max-w-md">
-        <h4 className="font-semibold mb-2">Troubleshooting:</h4>
+        <h4 className="font-semibold mb-2">For 3D Visualization:</h4>
         <ul className="text-sm text-left list-disc pl-5 space-y-1">
           <li>Try using a modern browser like Chrome, Firefox, or Edge</li>
           <li>Make sure your graphics drivers are up to date</li>
@@ -61,17 +68,20 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
   });
   
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
 
   // Check for browser compatibility on the client-side
   useEffect(() => {
-    // Skip check if already determined there's an error
-    if (hasRuntimeError) return;
+    // Skip check if already determined there's an error or using fallback
+    if (hasRuntimeError || useFallback) return;
     
     const checkCompatibility = async () => {
       try {
         // Check for WebGL support and browser compatibility
         const compatError = checkBrowserCompatibility();
         if (compatError) {
+          // Auto-switch to fallback for better user experience
+          setUseFallback(true);
           setCompatibilityState({
             isChecking: false,
             isCompatible: false,
@@ -83,6 +93,8 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
         // Perform a deeper WebGL test
         const webGLWorks = await testWebGLCapabilities();
         if (!webGLWorks) {
+          // Auto-switch to fallback for better user experience
+          setUseFallback(true);
           setCompatibilityState({
             isChecking: false,
             isCompatible: false,
@@ -99,6 +111,8 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
         });
       } catch (error) {
         console.error("Error during compatibility check:", error);
+        // Auto-switch to fallback on error
+        setUseFallback(true);
         setCompatibilityState({
           isChecking: false,
           isCompatible: false,
@@ -108,7 +122,7 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
     };
     
     checkCompatibility();
-  }, [hasRuntimeError]);
+  }, [hasRuntimeError, useFallback]);
 
   // If still checking compatibility, show a loading indicator
   if (compatibilityState.isChecking) {
@@ -121,9 +135,19 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
     );
   }
 
-  // If browser is not compatible or there's a runtime error, show error message
+  // If user explicitly chose to use fallback or we auto-switched to fallback due to compatibility issues
+  if (useFallback) {
+    return <FallbackSimulator {...props} />;
+  }
+
+  // If browser is not compatible or there's a runtime error, show error message with option to use fallback
   if (!compatibilityState.isCompatible || hasRuntimeError) {
-    return <ErrorFallback message={compatibilityState.errorMessage || undefined} />;
+    return (
+      <ErrorFallback 
+        message={compatibilityState.errorMessage || undefined} 
+        onTryFallback={() => setUseFallback(true)}
+      />
+    );
   }
 
   // If browser is compatible, render the 3D visualizer with error handling
@@ -166,7 +190,7 @@ class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return <ErrorFallback />;
+      return null; // Empty render - parent component will handle showing the error UI
     }
 
     return this.props.children;
