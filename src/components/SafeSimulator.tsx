@@ -5,10 +5,9 @@ import dynamic from 'next/dynamic';
 import { BuildingParams } from './BuildingParameterForm';
 import { SeismicParams } from './SeismicParameterForm';
 
-// Dynamically import the 3D visualizer with no SSR and forceWebGL
+// Dynamically import the full 3D visualizer with no SSR
 const CombinedSimulator = dynamic(() => import('./CombinedSimulator').then(mod => {
-  // Log that we're forcing WebGL
-  console.log('Loading WebGL 3D renderer');
+  console.log('Loading full WebGL 3D renderer');
   return mod;
 }), {
   ssr: false,
@@ -22,83 +21,132 @@ const CombinedSimulator = dynamic(() => import('./CombinedSimulator').then(mod =
   )
 });
 
+// Import the basic simulator with reduced complexity
+const BasicSimulator = dynamic(() => import('./BasicSimulator'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-2 mx-auto"></div>
+        <p>Loading Basic 3D View...</p>
+      </div>
+    </div>
+  )
+});
+
 type SafeSimulatorProps = {
   buildingParams: BuildingParams;
   seismicParams: SeismicParams;
   elapsedTime: number;
+  preferBasicMode?: boolean;
 };
 
-// Interactive troubleshooting guide component
-function TroubleshootingGuide({ onReload }: { onReload: () => void }) {
+// Troubleshooting guide component with basic mode option
+function TroubleshootingGuide({ 
+  onReload, 
+  onUseBasicMode 
+}: { 
+  onReload: () => void;
+  onUseBasicMode: () => void;
+}) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 p-8 text-center">
       <h3 className="text-xl font-bold text-red-600 mb-4">3D Visualization Error</h3>
       <p className="mb-4">
-        There was an issue loading the 3D visualization. Let's troubleshoot:
+        There was an issue loading the full 3D visualization. Let's troubleshoot:
       </p>
       
-      <button 
-        onClick={onReload}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-6"
-      >
-        Try Again
-      </button>
+      <div className="flex flex-wrap gap-4 mb-6">
+        <button 
+          onClick={onUseBasicMode}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Use Basic 3D Mode
+        </button>
+        
+        <button 
+          onClick={onReload}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          Try Again (Full 3D)
+        </button>
+      </div>
       
       <div className="bg-white dark:bg-gray-700 p-5 rounded-lg max-w-lg mb-5">
         <h4 className="font-semibold mb-3 text-left">Troubleshooting Steps:</h4>
         <ol className="text-sm text-left list-decimal pl-5 space-y-3">
           <li>
-            <strong>Use a modern browser</strong>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Chrome, Firefox, Edge, or Safari are recommended. This application requires WebGL support.</p>
+            <strong>Use Basic 3D Mode</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">We've created a simplified 3D view that works on more devices.</p>
           </li>
           <li>
-            <strong>Update your graphics drivers</strong>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Outdated graphics drivers can cause WebGL issues. Visit your GPU manufacturer's website for updates.</p>
+            <strong>Use a modern browser</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Chrome, Firefox, Edge, or Safari are recommended.</p>
+          </li>
+          <li>
+            <strong>Update graphics drivers</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Outdated drivers can cause WebGL issues.</p>
           </li>
           <li>
             <strong>Enable hardware acceleration</strong>
             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-              In Chrome: Settings → System → "Use hardware acceleration when available"<br/>
-              In Firefox: Settings → Performance → "Use recommended performance settings"
+              In Chrome: Settings → System → "Use hardware acceleration"
             </p>
-          </li>
-          <li>
-            <strong>Try private/incognito mode</strong>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Browser extensions can sometimes interfere with WebGL rendering.</p>
-          </li>
-          <li>
-            <strong>Try a different device</strong>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">If possible, try accessing this application on another device or computer.</p>
           </li>
         </ol>
       </div>
-      
-      <p className="text-sm text-gray-600 dark:text-gray-400">
-        This application requires WebGL for 3D visualization. If you're still encountering issues, 
-        please try a different browser or device with better WebGL support.
-      </p>
     </div>
   );
 }
 
-export default function SafeSimulator(props: SafeSimulatorProps) {
-  const [hasRuntimeError, setHasRuntimeError] = useState(false);
+export default function SafeSimulator({
+  buildingParams,
+  seismicParams,
+  elapsedTime,
+  preferBasicMode = false
+}: SafeSimulatorProps) {
+  const [renderMode, setRenderMode] = useState<'full' | 'basic' | 'error'>(
+    preferBasicMode ? 'basic' : 'full'
+  );
   const [forceReload, setForceReload] = useState(0);
+  
+  // Update renderMode if preferBasicMode changes
+  useEffect(() => {
+    if (preferBasicMode && renderMode === 'full') {
+      setRenderMode('basic');
+    } else if (!preferBasicMode && renderMode === 'basic') {
+      // Only switch back to full if it wasn't set to basic due to an error
+      setRenderMode('full');
+    }
+  }, [preferBasicMode, renderMode]);
   
   // Handle reload attempts
   const handleReload = () => {
-    // Increment force reload counter to trigger component remount
     setForceReload(prev => prev + 1);
-    // Reset error state
-    setHasRuntimeError(false);
+    setRenderMode('full');
+  };
+  
+  // Switch to basic mode
+  const handleUseBasicMode = () => {
+    setRenderMode('basic');
   };
 
-  // If there's a runtime error, show troubleshooting guide
-  if (hasRuntimeError) {
-    return <TroubleshootingGuide onReload={handleReload} />;
+  // If in basic mode, render the simplified simulator
+  if (renderMode === 'basic') {
+    return <BasicSimulator {...{ buildingParams, seismicParams, elapsedTime }} />;
   }
 
-  // Always attempt to render the 3D visualizer with error handling
+  // If there was an error, show troubleshooting guide
+  if (renderMode === 'error') {
+    return (
+      <TroubleshootingGuide 
+        onReload={handleReload} 
+        onUseBasicMode={handleUseBasicMode} 
+      />
+    );
+  }
+
+  // Otherwise, try to render the full 3D visualizer with error handling
   return (
     <Suspense
       fallback={
@@ -106,13 +154,13 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-2 mx-auto"></div>
             <p>Loading 3D Visualizer...</p>
-            <p className="text-xs mt-2 text-gray-500">This might take a few moments on first load</p>
+            <p className="text-xs mt-2 text-gray-500">This might take a few moments</p>
           </div>
         </div>
       }
     >
-      <ErrorBoundary key={`3d-renderer-${forceReload}`} onError={() => setHasRuntimeError(true)}>
-        <CombinedSimulator {...props} />
+      <ErrorBoundary key={`3d-renderer-${forceReload}`} onError={() => setRenderMode('error')}>
+        <CombinedSimulator {...{ buildingParams, seismicParams, elapsedTime }} />
       </ErrorBoundary>
     </Suspense>
   );
@@ -139,7 +187,7 @@ class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return null; // Empty render - parent component will handle showing the error UI
+      return null; // Parent will handle error UI
     }
 
     return this.props.children;

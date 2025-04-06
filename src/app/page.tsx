@@ -24,6 +24,9 @@ export default function Home() {
   // Timer state
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Render mode state
+  const [preferBasicMode, setPreferBasicMode] = useState(false);
 
   // Handle seismic parameter form submission
   const handleSeismicSubmit = (params: SeismicParams) => {
@@ -189,11 +192,25 @@ export default function Home() {
           <div className="lg:col-span-2 card overflow-hidden">
             <div className="h-[600px]">
               {simulationStep === 'running' && seismicParams && buildingParams ? (
-                <SafeSimulator
-                  seismicParams={seismicParams}
-                  buildingParams={buildingParams}
-                  elapsedTime={elapsedTime}
-                />
+                <>
+                  <div className="absolute top-2 right-2 z-10 flex items-center bg-black/20 backdrop-blur-sm rounded p-1 text-xs">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={preferBasicMode}
+                        onChange={() => setPreferBasicMode(prev => !prev)}
+                        className="mr-2"
+                      />
+                      Use Basic 3D (Better Performance)
+                    </label>
+                  </div>
+                  <SafeSimulator
+                    seismicParams={seismicParams}
+                    buildingParams={buildingParams}
+                    elapsedTime={elapsedTime}
+                    preferBasicMode={preferBasicMode}
+                  />
+                </>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-center p-8">
                   <h2 className="text-2xl font-bold mb-4">Building Seismic Simulation</h2>
