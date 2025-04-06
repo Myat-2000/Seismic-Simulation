@@ -1,3 +1,5 @@
+'use client';
+
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Stats, Environment, Grid } from "@react-three/drei";
 import { BuildingParams } from "./BuildingParameterForm";
@@ -5,7 +7,9 @@ import { SeismicParams } from "./SeismicParameterForm";
 import BuildingVisualizer from "./BuildingVisualizer";
 import GroundWaveEffect from "./GroundWaveEffect";
 import SeismicWaves from "./SeismicWaves";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as THREE from 'three';
+import { WebGLRenderer } from 'three';
 
 type CombinedSimulatorProps = {
   buildingParams: BuildingParams;
@@ -35,6 +39,87 @@ function SimplifiedGround({
   );
 }
 
+// Force WebGL context creation with optimized settings
+function createOptimizedRenderer(canvas: HTMLCanvasElement | OffscreenCanvas) {
+  // Skip canvas element check for browser compatibility
+  try {
+    // Create optimized renderer
+    const renderer = new WebGLRenderer({
+      canvas: canvas as HTMLCanvasElement,
+      antialias: true,
+      powerPreference: 'high-performance',
+      precision: 'highp',
+    });
+    
+    // Configure renderer for performance
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    return renderer;
+  } catch (error) {
+    console.error("Error creating WebGL renderer:", error);
+    throw new Error('WebGL renderer creation failed');
+  }
+}
+
+// Fix the usePerformanceMode hook typing issues
+function usePerformanceMode() {
+  const [performanceMode, setPerformanceMode] = useState<'high' | 'medium' | 'low'>('high');
+  
+  useEffect(() => {
+    // Check GPU capabilities and adjust performance mode accordingly
+    const checkPerformance = () => {
+      try {
+        // Create temporary canvas to check WebGL capabilities
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') as WebGLRenderingContext | null || 
+                 canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+        
+        if (!gl) {
+          // WebGL not available, use lowest settings
+          setPerformanceMode('low');
+          return;
+        }
+        
+        // Check for performance limitations
+        const extension = gl.getExtension('WEBGL_debug_renderer_info');
+        if (!extension) {
+          // Can't get detailed GPU info, use medium settings
+          setPerformanceMode('medium');
+          return;
+        }
+        
+        const renderer = gl.getParameter(extension.UNMASKED_RENDERER_WEBGL);
+        
+        // Mobile GPU detection (common mobile GPU names)
+        const isMobileGPU = /adreno|mali|powervr|apple gpu/i.test(renderer);
+        
+        // Integrated GPU detection
+        const isIntegratedGPU = /intel|iris|hd graphics/i.test(renderer) && 
+                               !/nvidia|radeon|geforce|rtx/i.test(renderer);
+        
+        if (isMobileGPU) {
+          setPerformanceMode('low');
+        } else if (isIntegratedGPU) {
+          setPerformanceMode('medium');
+        } else {
+          setPerformanceMode('high');
+        }
+        
+      } catch (error) {
+        console.error("Error during performance detection:", error);
+        // Default to medium on error
+        setPerformanceMode('medium');
+      }
+    };
+    
+    checkPerformance();
+  }, []);
+  
+  return performanceMode;
+}
+
 export default function CombinedSimulator({
   buildingParams,
   seismicParams,
@@ -45,6 +130,9 @@ export default function CombinedSimulator({
   
   // Simulation speed control state
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1.0);
+  
+  // Get performance mode based on device capabilities
+  const performanceMode = usePerformanceMode();
   
   // Helper function to get camera position based on view mode
   const getCameraPosition = () => {
@@ -147,7 +235,23 @@ export default function CombinedSimulator({
         </div>
       </div>
       
-      <Canvas shadows>
+      <Canvas
+        shadows={performanceMode !== 'low'} // Disable shadows in low performance mode
+        dpr={
+          performanceMode === 'high' ? [1, 2] : 
+          performanceMode === 'medium' ? [1, 1.5] : 
+          [0.8, 1] // Lower resolution for low performance
+        }
+        gl={{
+          antialias: performanceMode !== 'low', // Disable antialiasing in low performance mode
+          powerPreference: 'high-performance',
+          precision: performanceMode === 'high' ? 'highp' : 'mediump', // Lower precision for better performance
+          alpha: false
+        }}
+        performance={{ 
+          min: performanceMode === 'low' ? 0.3 : performanceMode === 'medium' ? 0.5 : 0.7
+        }}
+      >
         {/* Camera setup */}
         <PerspectiveCamera 
           makeDefault 

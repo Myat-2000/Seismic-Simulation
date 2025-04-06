@@ -27,10 +27,41 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/earthquake.svg" type="image/svg+xml" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // WebGL polyfill and detection
+              (function() {
+                // Add WebGL detection
+                window.hasWebGL = (function() {
+                  try {
+                    var canvas = document.createElement('canvas');
+                    return !!(
+                      window.WebGLRenderingContext && 
+                      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+                    );
+                  } catch(e) {
+                    return false;
+                  }
+                })();
+                
+                // Warn about WebGL requirement
+                if (!window.hasWebGL) {
+                  console.warn('WebGL is not available on this device. 3D visualization may not work properly.');
+                }
+                
+                // Force hardware acceleration if possible
+                var style = document.createElement('style');
+                style.textContent = 
+                  'canvas { transform: translateZ(0); will-change: transform; }' +
+                  '.force-gpu { transform: translate3d(0,0,0); backface-visibility: hidden; perspective: 1000; }';
+                document.head.appendChild(style);
+              })();
+            `,
+          }}
+        />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
     </html>

@@ -4,11 +4,13 @@ import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { BuildingParams } from './BuildingParameterForm';
 import { SeismicParams } from './SeismicParameterForm';
-import { isWebGLSupported, checkBrowserCompatibility, testWebGLCapabilities } from '../utils/browserCompatibilityCheck';
-import FallbackSimulator from './FallbackSimulator';
 
-// Dynamically import the 3D visualizer with no SSR
-const CombinedSimulator = dynamic(() => import('./CombinedSimulator'), {
+// Dynamically import the 3D visualizer with no SSR and forceWebGL
+const CombinedSimulator = dynamic(() => import('./CombinedSimulator').then(mod => {
+  // Log that we're forcing WebGL
+  console.log('Loading WebGL 3D renderer');
+  return mod;
+}), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
@@ -26,131 +28,77 @@ type SafeSimulatorProps = {
   elapsedTime: number;
 };
 
-// Error boundary fallback component - no longer needed as we'll use 2D fallback instead
-function ErrorFallback({ message, onTryFallback }: { message?: string; onTryFallback: () => void }) {
+// Interactive troubleshooting guide component
+function TroubleshootingGuide({ onReload }: { onReload: () => void }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 p-8 text-center">
       <h3 className="text-xl font-bold text-red-600 mb-4">3D Visualization Error</h3>
       <p className="mb-4">
-        {message || "We couldn't load the 3D visualization."}
+        There was an issue loading the 3D visualization. Let's troubleshoot:
       </p>
+      
       <button 
-        onClick={onTryFallback}
+        onClick={onReload}
         className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-6"
       >
-        Use 2D Visualization Instead
+        Try Again
       </button>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        This might be due to WebGL not being supported in your browser or device.
-      </p>
-      <div className="bg-white dark:bg-gray-700 p-4 rounded-lg max-w-md">
-        <h4 className="font-semibold mb-2">For 3D Visualization:</h4>
-        <ul className="text-sm text-left list-disc pl-5 space-y-1">
-          <li>Try using a modern browser like Chrome, Firefox, or Edge</li>
-          <li>Make sure your graphics drivers are up to date</li>
-          <li>Check if hardware acceleration is enabled in your browser</li>
-          <li>Try refreshing the page or using a different device</li>
-        </ul>
+      
+      <div className="bg-white dark:bg-gray-700 p-5 rounded-lg max-w-lg mb-5">
+        <h4 className="font-semibold mb-3 text-left">Troubleshooting Steps:</h4>
+        <ol className="text-sm text-left list-decimal pl-5 space-y-3">
+          <li>
+            <strong>Use a modern browser</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Chrome, Firefox, Edge, or Safari are recommended. This application requires WebGL support.</p>
+          </li>
+          <li>
+            <strong>Update your graphics drivers</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Outdated graphics drivers can cause WebGL issues. Visit your GPU manufacturer's website for updates.</p>
+          </li>
+          <li>
+            <strong>Enable hardware acceleration</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+              In Chrome: Settings → System → "Use hardware acceleration when available"<br/>
+              In Firefox: Settings → Performance → "Use recommended performance settings"
+            </p>
+          </li>
+          <li>
+            <strong>Try private/incognito mode</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Browser extensions can sometimes interfere with WebGL rendering.</p>
+          </li>
+          <li>
+            <strong>Try a different device</strong>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">If possible, try accessing this application on another device or computer.</p>
+          </li>
+        </ol>
       </div>
+      
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        This application requires WebGL for 3D visualization. If you're still encountering issues, 
+        please try a different browser or device with better WebGL support.
+      </p>
     </div>
   );
 }
 
 export default function SafeSimulator(props: SafeSimulatorProps) {
-  const [compatibilityState, setCompatibilityState] = useState<{
-    isChecking: boolean;
-    isCompatible: boolean;
-    errorMessage: string | null;
-  }>({
-    isChecking: true,
-    isCompatible: false,
-    errorMessage: null
-  });
-  
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
-  const [useFallback, setUseFallback] = useState(false);
+  const [forceReload, setForceReload] = useState(0);
+  
+  // Handle reload attempts
+  const handleReload = () => {
+    // Increment force reload counter to trigger component remount
+    setForceReload(prev => prev + 1);
+    // Reset error state
+    setHasRuntimeError(false);
+  };
 
-  // Check for browser compatibility on the client-side
-  useEffect(() => {
-    // Skip check if already determined there's an error or using fallback
-    if (hasRuntimeError || useFallback) return;
-    
-    const checkCompatibility = async () => {
-      try {
-        // Check for WebGL support and browser compatibility
-        const compatError = checkBrowserCompatibility();
-        if (compatError) {
-          // Auto-switch to fallback for better user experience
-          setUseFallback(true);
-          setCompatibilityState({
-            isChecking: false,
-            isCompatible: false,
-            errorMessage: compatError
-          });
-          return;
-        }
-        
-        // Perform a deeper WebGL test
-        const webGLWorks = await testWebGLCapabilities();
-        if (!webGLWorks) {
-          // Auto-switch to fallback for better user experience
-          setUseFallback(true);
-          setCompatibilityState({
-            isChecking: false,
-            isCompatible: false,
-            errorMessage: "WebGL isn't working properly on your device. This is required for the 3D visualization."
-          });
-          return;
-        }
-        
-        // All checks passed
-        setCompatibilityState({
-          isChecking: false,
-          isCompatible: true,
-          errorMessage: null
-        });
-      } catch (error) {
-        console.error("Error during compatibility check:", error);
-        // Auto-switch to fallback on error
-        setUseFallback(true);
-        setCompatibilityState({
-          isChecking: false,
-          isCompatible: false,
-          errorMessage: "An error occurred while checking compatibility."
-        });
-      }
-    };
-    
-    checkCompatibility();
-  }, [hasRuntimeError, useFallback]);
-
-  // If still checking compatibility, show a loading indicator
-  if (compatibilityState.isChecking) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-pulse">Checking browser compatibility...</div>
-        </div>
-      </div>
-    );
+  // If there's a runtime error, show troubleshooting guide
+  if (hasRuntimeError) {
+    return <TroubleshootingGuide onReload={handleReload} />;
   }
 
-  // If user explicitly chose to use fallback or we auto-switched to fallback due to compatibility issues
-  if (useFallback) {
-    return <FallbackSimulator {...props} />;
-  }
-
-  // If browser is not compatible or there's a runtime error, show error message with option to use fallback
-  if (!compatibilityState.isCompatible || hasRuntimeError) {
-    return (
-      <ErrorFallback 
-        message={compatibilityState.errorMessage || undefined} 
-        onTryFallback={() => setUseFallback(true)}
-      />
-    );
-  }
-
-  // If browser is compatible, render the 3D visualizer with error handling
+  // Always attempt to render the 3D visualizer with error handling
   return (
     <Suspense
       fallback={
@@ -158,18 +106,19 @@ export default function SafeSimulator(props: SafeSimulatorProps) {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-2 mx-auto"></div>
             <p>Loading 3D Visualizer...</p>
+            <p className="text-xs mt-2 text-gray-500">This might take a few moments on first load</p>
           </div>
         </div>
       }
     >
-      <ErrorBoundary onError={() => setHasRuntimeError(true)}>
+      <ErrorBoundary key={`3d-renderer-${forceReload}`} onError={() => setHasRuntimeError(true)}>
         <CombinedSimulator {...props} />
       </ErrorBoundary>
     </Suspense>
   );
 }
 
-// Simple error boundary component
+// Error boundary component for catching rendering errors
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; onError: () => void },
   { hasError: boolean }
