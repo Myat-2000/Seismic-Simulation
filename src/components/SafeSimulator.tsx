@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { BuildingParams } from './BuildingParameterForm';
 import { SeismicParams } from './SeismicParameterForm';
+import { StructuralMaterialsParams } from './StructuralMaterialsForm';
 
 // Load simulators with special settings to prevent initialization errors
 const BasicSimulator = dynamic(() => import('./BasicSimulator'), {
@@ -17,6 +18,23 @@ const BasicSimulator = dynamic(() => import('./BasicSimulator'), {
         </div>
         <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">Loading Basic 3D Mode</h3>
         <p className="text-gray-600 dark:text-gray-300 text-sm">Optimized for performance and compatibility</p>
+      </div>
+    </div>
+  )
+});
+
+// Import FallbackSimulator for 2D fallback mode
+const FallbackSimulator = dynamic(() => import('./FallbackSimulator'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <div className="text-center max-w-md p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+        <div className="relative w-16 h-16 mx-auto mb-4">
+          <div className="absolute top-0 left-0 w-full h-full border-4 border-t-red-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+          <div className="absolute top-0 left-0 w-full h-full border-4 border-t-transparent border-r-transparent border-b-red-300 border-l-transparent rounded-full animate-spin animation-delay-500"></div>
+        </div>
+        <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">Loading 2D Fallback Mode</h3>
+        <p className="text-gray-600 dark:text-gray-300 text-sm">Preparing simplified visualization for compatibility</p>
       </div>
     </div>
   )
@@ -48,6 +66,7 @@ export type SafeSimulatorProps = {
   seismicParams: SeismicParams;
   elapsedTime: number;
   preferBasicMode?: boolean;
+  materialsParams?: StructuralMaterialsParams;
 };
 
 // Troubleshooting component
@@ -120,9 +139,33 @@ export default function SafeSimulator({
   preferBasicMode = false
 }: SafeSimulatorProps) {
   // Use state to manage render mode
-  const [renderMode, setRenderMode] = useState<'full' | 'basic' | 'error' | 'loading'>(
+  const [renderMode, setRenderMode] = useState<'full' | 'basic' | 'fallback' | 'error' | 'loading'>(
     preferBasicMode ? 'basic' : 'full'
   );
+  
+  // Check for WebGL support on component mount
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
+    const checkWebGLSupport = async () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const hasWebGL = !!(window.WebGLRenderingContext && 
+          (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+        
+        if (!hasWebGL && renderMode !== 'fallback') {
+          console.log('WebGL not supported, switching to 2D fallback mode');
+          setRenderMode('fallback');
+        }
+      } catch (e) {
+        console.error('Error checking WebGL support:', e);
+        setRenderMode('fallback');
+      }
+    };
+    
+    checkWebGLSupport();
+  }, [renderMode]);
 
   // Add loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -149,7 +192,7 @@ export default function SafeSimulator({
   }, [preferBasicMode, renderMode]);
 
   // Custom loading spinner
-  const LoadingSpinner = ({ mode }: { mode: 'basic' | 'full' }) => (
+  const LoadingSpinner = ({ mode }: { mode: 'basic' | 'full' | 'fallback' }) => (
     <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-900">
       <div className="text-center max-w-md p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
         <div className="relative w-16 h-16 mx-auto mb-4">
@@ -180,15 +223,30 @@ export default function SafeSimulator({
 
   // Show loading state
   if (isLoading) {
-    return <LoadingSpinner mode={renderMode === 'basic' ? 'basic' : 'full'} />;
+    return <LoadingSpinner mode={renderMode === 'basic' ? 'basic' : renderMode === 'fallback' ? 'fallback' : 'full'} />;
   }
 
-  // BasicSimulator as fallback
+  // BasicSimulator for simplified 3D
   if (renderMode === 'basic') {
     return (
       <Suspense fallback={<LoadingSpinner mode="basic" />}>
         <ErrorBoundary onError={() => setRenderMode('error')}>
           <BasicSimulator
+            buildingParams={buildingParams}
+            seismicParams={seismicParams}
+            elapsedTime={elapsedTime}
+          />
+        </ErrorBoundary>
+      </Suspense>
+    );
+  }
+  
+  // 2D FallbackSimulator when WebGL is not available
+  if (renderMode === 'fallback') {
+    return (
+      <Suspense fallback={<LoadingSpinner mode="fallback" />}>
+        <ErrorBoundary onError={() => setRenderMode('error')}>
+          <FallbackSimulator
             buildingParams={buildingParams}
             seismicParams={seismicParams}
             elapsedTime={elapsedTime}
@@ -238,4 +296,4 @@ class ErrorBoundary extends React.Component<
 
     return this.props.children;
   }
-} 
+}

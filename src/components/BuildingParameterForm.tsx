@@ -1,6 +1,8 @@
 import { useState, FormEvent } from 'react';
+import StructuralElementForm from './StructuralElementForm';
+import { DetailedBuildingParams } from './StructuralComponentAnalysis';
 
-export type BuildingParams = {
+export type BuildingParams = DetailedBuildingParams & {
   height: number;
   width: number;
   depth: number;
@@ -18,6 +20,28 @@ const defaultBuildingParams: BuildingParams = {
   stiffness: 5,
   dampingRatio: 0.05,
   materialType: 'concrete',
+  structuralComponents: {
+    columns: {
+      width: 0.5,
+      reinforcement: 'medium',
+      connectionType: 'rigid'
+    },
+    beams: {
+      width: 0.3,
+      depth: 0.5,
+      reinforcement: 'medium',
+      connectionType: 'rigid'
+    },
+    slabs: {
+      thickness: 0.2,
+      reinforcement: 'medium',
+      type: 'two-way'
+    },
+    foundation: {
+      type: 'isolated',
+      depth: 2
+    }
+  }
 };
 
 type BuildingParameterFormProps = {
@@ -49,9 +73,17 @@ export default function BuildingParameterForm({ onSubmit, initialParams = {} }: 
     }));
   };
 
+  const handleStructuralElementSubmit = (structuralComponents: DetailedBuildingParams['structuralComponents']) => {
+    setParams(prev => ({
+      ...prev,
+      structuralComponents
+    }));
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">Building Parameters</h2>
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <h2 className="text-xl font-bold mb-4">Building Parameters</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -184,6 +216,12 @@ export default function BuildingParameterForm({ onSubmit, initialParams = {} }: 
           Apply Building Parameters
         </button>
       </div>
-    </form>
+      </form>
+      
+      <StructuralElementForm
+        onSubmit={handleStructuralElementSubmit}
+        initialParams={params.structuralComponents}
+      />
+    </div>
   );
-} 
+}

@@ -56,7 +56,8 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       ctx.fillRect(0, centerY + 50, canvas.width, 20);
       
       // Draw seismic waves as concentric circles
-      const waveRadius = elapsedTime * waveVelocity * 30;
+      // Fix: Use a more accurate wave propagation calculation and ensure waveVelocity has a default value
+      const waveRadius = elapsedTime * (waveVelocity || 5) * 30;
       const maxWaves = 5;
       
       for (let i = 0; i < maxWaves; i++) {
@@ -94,9 +95,21 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       const buildingX = centerX - buildingWidth / 2;
       const buildingY = centerY + 50 - buildingHeight;
       
-      // Calculate displacement based on time and magnitude
-      const displacementAmplitude = magnitude * 2;
-      const displacement = Math.sin(elapsedTime * 5) * displacementAmplitude;
+      // Calculate displacement based on time, magnitude and material properties
+      // Fix: Add material-based damping factor for more realistic simulation
+      let dampingFactor = 1.0; // Default for concrete
+      if (materialType === 'steel') {
+        dampingFactor = 0.7; // Steel has better damping
+      } else if (materialType === 'wood') {
+        dampingFactor = 1.3; // Wood has worse damping
+      }
+      
+      const displacementAmplitude = magnitude * 2 * dampingFactor;
+      // Calculate distance from epicenter to adjust displacement
+      // These variables will be reused for damage calculation
+      const epicenterDistance = Math.sqrt(epicenterX * epicenterX + epicenterY * epicenterY);
+      const distanceFactor = Math.max(0.2, 1 - (epicenterDistance / 100));
+      const displacement = Math.sin(elapsedTime * 5) * displacementAmplitude * distanceFactor;
       
       // Draw building with displacement
       ctx.fillStyle = buildingColor;
@@ -145,7 +158,21 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       ctx.fillText(`Building Height: ${height}m (${floors} floors)`, 20, 70);
       
       // Draw damage indicator
-      const damagePercent = Math.min(100, Math.max(0, magnitude * elapsedTime / 2));
+      // Fix: More realistic damage calculation based on multiple factors
+      let materialResistanceFactor = 1.0; // Default for concrete
+      if (materialType === 'steel') {
+        materialResistanceFactor = 0.6; // Steel is more resistant
+      } else if (materialType === 'wood') {
+        materialResistanceFactor = 1.4; // Wood is less resistant
+      }
+      
+      // Calculate time factor (damage accumulates but with diminishing returns)
+      const timeFactor = Math.min(1, elapsedTime / (seismicParams.duration || 10));
+      
+      // Calculate final damage percentage
+      const damagePercent = Math.min(100, Math.max(0, 
+        magnitude * timeFactor * distanceFactor * materialResistanceFactor * 10
+      ));
       ctx.fillText(`Damage Risk: ${damagePercent.toFixed(0)}%`, 20, 90);
       
       ctx.fillStyle = '#333';
@@ -164,7 +191,7 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationRef.current);
     };
-  }, [buildingParams, seismicParams, elapsedTime]);
+  }, [buildingParams, seismicParams, elapsedTime]); // Dependencies are correct
   
   return (
     <div className="w-full h-full relative bg-gray-100 dark:bg-gray-800">
@@ -178,4 +205,4 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       </div>
     </div>
   );
-} 
+}

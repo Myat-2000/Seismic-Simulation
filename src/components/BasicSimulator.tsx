@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { BuildingParams } from "./BuildingParameterForm";
 import { SeismicParams } from "./SeismicParameterForm";
+import { StructuralMaterialsParams } from './StructuralMaterialsForm';
 import { Vector3, Euler } from 'three';
 
 // Define types
@@ -12,6 +13,7 @@ type BasicSimulatorProps = {
   buildingParams: BuildingParams;
   seismicParams: SeismicParams;
   elapsedTime: number;
+  materialsParams?: StructuralMaterialsParams;
 };
 
 // Component to render a single floor piece with physics for collapse
@@ -599,4 +601,4 @@ export default function BasicSimulator({
       </Canvas>
     </div>
   );
-} 
+}
