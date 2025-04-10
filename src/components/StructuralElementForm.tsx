@@ -198,83 +198,89 @@ export default function StructuralElementForm({ onSubmit, initialParams = defaul
               step="0.05"
               min="0.1"
               max="0.5"
-            />
-          </FormField>
-          
-          <FormField 
-            label="Reinforcement" 
-            htmlFor="slabs-reinforcement"
-            tooltip="The amount of steel reinforcement in the slabs. Affects load distribution and crack resistance."
-          >
-            <Select
-              id="slabs-reinforcement"
-              value={params.slabs.reinforcement}
-              onChange={(e) => handleChange('slabs', 'reinforcement', e.target.value)}
-              options={[
-                { value: 'light', label: 'Light' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'heavy', label: 'Heavy' }
-              ]}
-            />
-          </FormField>
-          
-          <FormField 
-            label="Type" 
-            htmlFor="slabs-type"
-            tooltip="The structural system of the slab. Affects load distribution and behavior during seismic events."
-          >
-            <Select
-              id="slabs-type"
-              value={params.slabs.type}
-              onChange={(e) => handleChange('slabs', 'type', e.target.value)}
-              options={[
-                { value: 'one-way', label: 'One-way' },
-                { value: 'two-way', label: 'Two-way' },
-                { value: 'flat', label: 'Flat' }
-              ]}
-            />
-          </FormField>
-        </FormRow>
+                />
+              </FormField>
+              
+              <FormField 
+                label="Reinforcement" 
+                htmlFor="slabs-reinforcement"
+                tooltip="The amount of steel reinforcement in the slabs. Affects load distribution and crack resistance."
+              >
+                <Select
+                  id="slabs-reinforcement"
+                  value={params.slabs.reinforcement}
+                  onChange={(e) => handleChange('slabs', 'reinforcement', e.target.value)}
+                  options={[
+                    { value: 'light', label: 'Light' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'heavy', label: 'Heavy' }
+                  ]}
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                />
+              </FormField>
+              
+              <FormField 
+                label="Type" 
+                htmlFor="slabs-type"
+                tooltip="The structural system of the slab. Affects load distribution and behavior during seismic events."
+              >
+                <Select
+                  id="slabs-type"
+                  value={params.slabs.type}
+                  onChange={(e) => handleChange('slabs', 'type', e.target.value)}
+                  options={[
+                    { value: 'one-way', label: 'One-way' },
+                    { value: 'two-way', label: 'Two-way' },
+                    { value: 'flat', label: 'Flat' }
+                  ]}
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                />
+              </FormField>
+            </FormRow>
       </FormSection>
 
       {/* Foundation Section */}
       <FormSection title="Foundation" description="Define the properties of building foundation">
-        <FormRow cols={2}>
-          <FormField 
-            label="Type" 
-            htmlFor="foundation-type"
-            tooltip="The type of foundation system. Different types are suitable for different soil conditions and building loads."
-          >
-            <Select
-              id="foundation-type"
-              value={params.foundation.type}
-              onChange={(e) => handleChange('foundation', 'type', e.target.value)}
-              options={[
-                { value: 'isolated', label: 'Isolated' },
-                { value: 'strip', label: 'Strip' },
-                { value: 'raft', label: 'Raft' },
-                { value: 'pile', label: 'Pile' }
-              ]}
-            />
-          </FormField>
-          
-          <FormField 
-            label="Depth (m)" 
-            htmlFor="foundation-depth"
-            tooltip="The depth of the foundation in meters. Deeper foundations provide more stability but are more expensive."
-          >
-            <Input
-              type="number"
-              id="foundation-depth"
-              value={params.foundation.depth}
-              onChange={(e) => handleChange('foundation', 'depth', parseFloat(e.target.value))}
-              step="0.5"
-              min="1"
-              max="20"
-            />
-          </FormField>
-        </FormRow>
-      </FormSection>
+          <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+            <FormRow cols={2}>
+              <FormField 
+                label="Type" 
+                htmlFor="foundation-type"
+                tooltip="The type of foundation system. Different types are suitable for different soil conditions and building loads."
+              >
+                <Select
+                  id="foundation-type"
+                  value={params.foundation.type}
+                  onChange={(e) => handleChange('foundation', 'type', e.target.value)}
+                  options={[
+                    { value: 'isolated', label: 'Isolated' },
+                    { value: 'strip', label: 'Strip' },
+                    { value: 'raft', label: 'Raft' },
+                    { value: 'pile', label: 'Pile' }
+                  ]}
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                />
+              </FormField>
+              
+              <FormField 
+                label="Depth (m)" 
+                htmlFor="foundation-depth"
+                tooltip="The depth of the foundation in meters. Deeper foundations provide more stability but are more expensive."
+              >
+                <Input
+                  type="number"
+                  id="foundation-depth"
+                  value={params.foundation.depth}
+                  onChange={(e) => handleChange('foundation', 'depth', parseFloat(e.target.value))}
+                  step="0.5"
+                  min="1"
+                  max="20"
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                />
+              </FormField>
+            </FormRow>
+          </div>
+        </FormSection>
 
       <Button
         type="submit"

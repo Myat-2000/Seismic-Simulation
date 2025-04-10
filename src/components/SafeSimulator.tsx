@@ -67,6 +67,8 @@ export type SafeSimulatorProps = {
   elapsedTime: number;
   preferBasicMode?: boolean;
   materialsParams?: StructuralMaterialsParams;
+  onStop?: () => void;
+  onRestart?: () => void;
 };
 
 // Troubleshooting component
@@ -136,7 +138,9 @@ export default function SafeSimulator({
   buildingParams, 
   seismicParams, 
   elapsedTime,
-  preferBasicMode = false
+  preferBasicMode = false,
+  onStop,
+  onRestart
 }: SafeSimulatorProps) {
   // Use state to manage render mode
   const [renderMode, setRenderMode] = useState<'full' | 'basic' | 'fallback' | 'error' | 'loading'>(
@@ -231,11 +235,43 @@ export default function SafeSimulator({
     return (
       <Suspense fallback={<LoadingSpinner mode="basic" />}>
         <ErrorBoundary onError={() => setRenderMode('error')}>
-          <BasicSimulator
-            buildingParams={buildingParams}
-            seismicParams={seismicParams}
-            elapsedTime={elapsedTime}
-          />
+          <div className="relative w-full h-full">
+            <BasicSimulator
+              buildingParams={buildingParams}
+              seismicParams={seismicParams}
+              elapsedTime={elapsedTime}
+            />
+            {/* Simulation Controls */}
+            {(onStop || onRestart) && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-3">
+                {onStop && (
+                  <button
+                    onClick={onStop}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                    aria-label="Stop simulation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                    </svg>
+                    Stop
+                  </button>
+                )}
+                
+                {onRestart && (
+                  <button
+                    onClick={onRestart}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                    aria-label="Restart simulation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
+                    Restart
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </ErrorBoundary>
       </Suspense>
     );
@@ -246,11 +282,43 @@ export default function SafeSimulator({
     return (
       <Suspense fallback={<LoadingSpinner mode="fallback" />}>
         <ErrorBoundary onError={() => setRenderMode('error')}>
-          <FallbackSimulator
-            buildingParams={buildingParams}
-            seismicParams={seismicParams}
-            elapsedTime={elapsedTime}
-          />
+          <div className="relative w-full h-full">
+            <FallbackSimulator
+              buildingParams={buildingParams}
+              seismicParams={seismicParams}
+              elapsedTime={elapsedTime}
+            />
+            {/* Simulation Controls */}
+            {(onStop || onRestart) && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-3">
+                {onStop && (
+                  <button
+                    onClick={onStop}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                    aria-label="Stop simulation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                    </svg>
+                    Stop
+                  </button>
+                )}
+                
+                {onRestart && (
+                  <button
+                    onClick={onRestart}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                    aria-label="Restart simulation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
+                    Restart
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </ErrorBoundary>
       </Suspense>
     );
@@ -260,11 +328,43 @@ export default function SafeSimulator({
   return (
     <Suspense fallback={<LoadingSpinner mode="full" />}>
       <ErrorBoundary onError={() => setRenderMode('error')}>
-        <CombinedSimulator
-          buildingParams={buildingParams}
-          seismicParams={seismicParams}
-          elapsedTime={elapsedTime}
-        />
+        <div className="relative w-full h-full">
+          <CombinedSimulator
+            buildingParams={buildingParams}
+            seismicParams={seismicParams}
+            elapsedTime={elapsedTime}
+          />
+          {/* Simulation Controls */}
+          {(onStop || onRestart) && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-3">
+              {onStop && (
+                <button
+                  onClick={onStop}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                  aria-label="Stop simulation"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                  </svg>
+                  Stop
+                </button>
+              )}
+              
+              {onRestart && (
+                <button
+                  onClick={onRestart}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                  aria-label="Restart simulation"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                  </svg>
+                  Restart
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </ErrorBoundary>
     </Suspense>
   );

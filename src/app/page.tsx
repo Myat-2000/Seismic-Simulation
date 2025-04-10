@@ -7,6 +7,8 @@ import BuildingParameterForm, { BuildingParams } from '../components/BuildingPar
 import StructuralMaterialsForm, { StructuralMaterialsParams } from '../components/StructuralMaterialsForm';
 import SeismicInfo from '../components/SeismicInfo';
 import BuildingAnalysisResults from '../components/BuildingAnalysisResults';
+import SimulationControls from '../components/SimulationControls';
+import SimulationProgressIndicator from '../components/SimulationProgressIndicator';
 
 // Dynamically import the Safe 3D visualizer to avoid server-side rendering issues
 const SafeSimulator = dynamic(() => import('../components/SafeSimulator'), {
@@ -43,9 +45,16 @@ export default function Home() {
   };
 
   // Handle materials parameter form submission
-  const handleMaterialsSubmit = (params: StructuralMaterialsParams) => {
+  const handleMaterialsSubmit = (params: StructuralMaterialsParams, structuralElements?: DetailedBuildingParams['structuralComponents']) => {
     setMaterialsParams(params);
-    startSimulation();
+    
+    // Update building params with structural elements if provided
+    if (structuralElements && buildingParams) {
+      setBuildingParams({
+        ...buildingParams,
+        structuralComponents: structuralElements
+      });
+    }
   };
 
   // Start the simulation
@@ -79,7 +88,7 @@ export default function Home() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setSimulationStep('seismic');
+    // Just stop the timer without changing the step
   };
   
   // Handle restarting the simulation with new parameters
@@ -88,6 +97,12 @@ export default function Home() {
     setSeismicParams(null);
     setBuildingParams(null);
     setMaterialsParams(null);
+  };
+  
+  // Handle stopping the simulation and returning to setup
+  const handleReturnToSetup = () => {
+    handleStopSimulation();
+    setSimulationStep('seismic');
   };
   
   // Handle replaying the simulation
@@ -127,12 +142,26 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <div className="container mx-auto py-8 px-4">
-        <header className="mb-8 text-center">
+        <header className="mb-6 text-center">
           <h1 className="text-4xl font-bold mb-3">Seismic Building Simulation</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Interactive 3D visualization of building response to seismic activity with real-time structural analysis
           </p>
         </header>
+        
+        {/* Progress Indicator */}
+        <SimulationProgressIndicator 
+          currentStep={simulationStep} 
+          onStepClick={(step) => {
+            // Only allow navigation to previous steps or current step
+            const currentStepIndex = ['seismic', 'building', 'materials', 'running'].indexOf(simulationStep);
+            const targetStepIndex = ['seismic', 'building', 'materials', 'running'].indexOf(step);
+            
+            if (targetStepIndex <= currentStepIndex) {
+              setSimulationStep(step);
+            }
+          }}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left panel: Parameter forms or analysis results */}
@@ -194,7 +223,20 @@ export default function Home() {
                 <StructuralMaterialsForm 
                   onSubmit={handleMaterialsSubmit} 
                   activeMaterial={buildingParams.materialType}
+                  initialStructuralElements={buildingParams.structuralComponents}
                 />
+                
+                <div className="mt-6">
+                  <button
+                    onClick={startSimulation}
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-medium py-3 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-1 duration-300"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                    Start Simulation
+                  </button>
+                </div>
               </>
             )}
             
@@ -208,25 +250,34 @@ export default function Home() {
                   elapsedTime={elapsedTime}
                 />
                 
-                <div className="flex flex-col space-y-3 mt-4">
-                  <button
-                    onClick={handleStopSimulation}
-                    className="w-full btn btn-danger"
-                  >
-                    Stop Simulation
-                  </button>
-                  
+                <div className="flex flex-col space-y-3 mt-6">
                   <button
                     onClick={handleReplaySimulation}
-                    className="w-full btn btn-primary"
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-medium py-3 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-md"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
                     Replay Simulation
                   </button>
                   
                   <button
-                    onClick={handleRestartSetup}
-                    className="w-full btn btn-outline"
+                    onClick={handleReturnToSetup}
+                    className="w-full bg-danger hover:bg-danger-dark text-white font-medium py-3 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-md"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    Exit Simulation
+                  </button>
+                  
+                  <button
+                    onClick={handleRestartSetup}
+                    className="w-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium py-3 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
                     Reset & Start Over
                   </button>
                 </div>
@@ -264,15 +315,9 @@ export default function Home() {
                     </div>
                   ) : simulationStep === 'materials' ? (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-                      <button
-                        onClick={() => startSimulation()}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2 animate-pulse"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                        </svg>
-                        {simulationStep === 'materials' ? 'Start Simulation' : 'Update Building'}
-                      </button>
+                      <div className="text-center bg-black/30 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
+                        Configure materials and structural elements on the left panel
+                      </div>
                     </div>
                   ) : null}
                   <SafeSimulator
@@ -280,6 +325,8 @@ export default function Home() {
                     buildingParams={buildingParams}
                     elapsedTime={elapsedTime}
                     preferBasicMode={preferBasicMode}
+                    onStop={simulationStep === 'running' ? handleStopSimulation : undefined}
+                    onRestart={simulationStep === 'running' ? handleReplaySimulation : undefined}
                     materialsParams={simulationStep === 'materials' ? materialsParams : {
                       concrete: {
                         compressiveStrength: 30,
