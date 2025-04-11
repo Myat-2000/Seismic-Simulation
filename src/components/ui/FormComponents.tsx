@@ -198,6 +198,9 @@ export function Checkbox({
   );
 }
 
+// Export Button component
+//export { Button } from './Button';
+
 type ButtonProps = {
   children: ReactNode;
   type?: 'button' | 'submit' | 'reset';

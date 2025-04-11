@@ -9,6 +9,8 @@ import SeismicInfo from '../components/SeismicInfo';
 import BuildingAnalysisResults from '../components/BuildingAnalysisResults';
 import SimulationControls from '../components/SimulationControls';
 import SimulationProgressIndicator from '../components/SimulationProgressIndicator';
+import EnhancedSimulationView from '../components/EnhancedSimulationView';
+import { DetailedBuildingParams } from '../components/StructuralComponentAnalysis';
 
 // Dynamically import the Safe 3D visualizer to avoid server-side rendering issues
 const SafeSimulator = dynamic(() => import('../components/SafeSimulator'), {
@@ -241,7 +243,7 @@ export default function Home() {
             )}
             
             {simulationStep === 'running' && seismicParams && buildingParams && materialsParams && (
-              <>
+              <div className="space-y-6">
                 <SeismicInfo params={seismicParams} elapsedTime={elapsedTime} />
                 
                 <BuildingAnalysisResults
@@ -249,6 +251,30 @@ export default function Home() {
                   seismicParams={seismicParams}
                   elapsedTime={elapsedTime}
                 />
+                
+                <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <h3 className="font-bold mb-2">Simulation Controls</h3>
+                  <SimulationControls
+                    isRunning={elapsedTime < seismicParams.duration}
+                    elapsedTime={elapsedTime}
+                    duration={seismicParams.duration}
+                    onStop={handleStopSimulation}
+                    onReplay={handleReplaySimulation}
+                    onReturnToSetup={handleReturnToSetup}
+                  />
+                </div>
+                
+                {elapsedTime >= seismicParams.duration && (
+                  <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                    <h3 className="font-bold mb-2">Enhanced Visualization & Analysis</h3>
+                    <button
+                      onClick={() => setPreferBasicMode(!preferBasicMode)}
+                      className="mb-4 px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+                    >
+                      {preferBasicMode ? 'Switch to Enhanced View' : 'Switch to Basic View'}
+                    </button>
+                  </div>
+                )}
                 
                 <div className="flex flex-col space-y-3 mt-6">
                   <button
@@ -281,7 +307,7 @@ export default function Home() {
                     Reset & Start Over
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
 
