@@ -4,12 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import SeismicParameterForm, { SeismicParams } from '../components/SeismicParameterForm';
 import BuildingParameterForm, { BuildingParams } from '../components/BuildingParameterForm';
+import StructuralElementForm from '../components/StructuralElementForm';
 import StructuralMaterialsForm, { StructuralMaterialsParams } from '../components/StructuralMaterialsForm';
 import SeismicInfo from '../components/SeismicInfo';
 import BuildingAnalysisResults from '../components/BuildingAnalysisResults';
-import SimulationControls from '../components/SimulationControls';
+// SimulationControls import removed to avoid duplication
 import SimulationProgressIndicator from '../components/SimulationProgressIndicator';
 import EnhancedSimulationView from '../components/EnhancedSimulationView';
+import EnhancedSimulationCapabilities from '../components/EnhancedSimulationCapabilities';
 import { DetailedBuildingParams } from '../components/StructuralComponentAnalysis';
 
 // Dynamically import the Safe 3D visualizer to avoid server-side rendering issues
@@ -20,7 +22,7 @@ const SafeSimulator = dynamic(() => import('../components/SafeSimulator'), {
 
 export default function Home() {
   // Simulation states
-  const [simulationStep, setSimulationStep] = useState<'seismic' | 'building' | 'materials' | 'running'>('seismic');
+  const [simulationStep, setSimulationStep] = useState<'seismic' | 'building' | 'structural' | 'materials' | 'running'>('seismic');
   
   // Parameter states
   const [seismicParams, setSeismicParams] = useState<SeismicParams | null>(null);
@@ -43,20 +45,23 @@ export default function Home() {
   // Handle building parameter form submission
   const handleBuildingSubmit = (params: BuildingParams) => {
     setBuildingParams(params);
-    setSimulationStep('materials');
+    setSimulationStep('structural');
   };
 
-  // Handle materials parameter form submission
-  const handleMaterialsSubmit = (params: StructuralMaterialsParams, structuralElements?: DetailedBuildingParams['structuralComponents']) => {
-    setMaterialsParams(params);
-    
-    // Update building params with structural elements if provided
-    if (structuralElements && buildingParams) {
+  // Handle structural element properties form submission
+  const handleStructuralElementSubmit = (structuralElements: DetailedBuildingParams['structuralComponents']) => {
+    if (buildingParams) {
       setBuildingParams({
         ...buildingParams,
         structuralComponents: structuralElements
       });
     }
+    setSimulationStep('materials');
+  };
+
+  // Handle materials parameter form submission
+  const handleMaterialsSubmit = (params: StructuralMaterialsParams) => {
+    setMaterialsParams(params);
   };
 
   // Start the simulation
@@ -156,8 +161,8 @@ export default function Home() {
           currentStep={simulationStep} 
           onStepClick={(step) => {
             // Only allow navigation to previous steps or current step
-            const currentStepIndex = ['seismic', 'building', 'materials', 'running'].indexOf(simulationStep);
-            const targetStepIndex = ['seismic', 'building', 'materials', 'running'].indexOf(step);
+            const currentStepIndex = ['seismic', 'building', 'structural', 'materials', 'running'].indexOf(simulationStep);
+            const targetStepIndex = ['seismic', 'building', 'structural', 'materials', 'running'].indexOf(step);
             
             if (targetStepIndex <= currentStepIndex) {
               setSimulationStep(step);
@@ -192,6 +197,43 @@ export default function Home() {
               </>
             )}
             
+            {simulationStep === 'structural' && seismicParams && buildingParams && (
+              <>
+                <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <h3 className="font-bold mb-2">Seismic Parameters (Set)</h3>
+                  <p className="text-sm">Magnitude: {seismicParams.magnitude.toFixed(1)}</p>
+                  <p className="text-sm">Depth: {seismicParams.depth} km</p>
+                  <p className="text-sm">Epicenter: ({seismicParams.epicenterX}, {seismicParams.epicenterY})</p>
+                  
+                  <button
+                    onClick={() => setSimulationStep('seismic')}
+                    className="mt-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Edit Seismic Parameters
+                  </button>
+                </div>
+
+                <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <h3 className="font-bold mb-2">Building Parameters (Set)</h3>
+                  <p className="text-sm">Dimensions: {buildingParams.width}m × {buildingParams.depth}m × {buildingParams.height}m</p>
+                  <p className="text-sm">Floors: {buildingParams.floors}</p>
+                  <p className="text-sm">Material: {buildingParams.materialType.charAt(0).toUpperCase() + buildingParams.materialType.slice(1)}</p>
+                  
+                  <button
+                    onClick={() => setSimulationStep('building')}
+                    className="mt-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Edit Building Parameters
+                  </button>
+                </div>
+                
+                <StructuralElementForm 
+                  onSubmit={handleStructuralElementSubmit} 
+                  initialParams={buildingParams.structuralComponents}
+                />
+              </>
+            )}
+            
             {simulationStep === 'materials' && seismicParams && buildingParams && (
               <>
                 <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -222,10 +264,23 @@ export default function Home() {
                   </button>
                 </div>
                 
+                <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <h3 className="font-bold mb-2">Structural Elements (Set)</h3>
+                  <p className="text-sm">Columns: {buildingParams.structuralComponents?.columns.width}m width, {buildingParams.structuralComponents?.columns.reinforcement} reinforcement</p>
+                  <p className="text-sm">Beams: {buildingParams.structuralComponents?.beams.width}m × {buildingParams.structuralComponents?.beams.depth}m</p>
+                  <p className="text-sm">Foundation: {buildingParams.structuralComponents?.foundation.type}</p>
+                  
+                  <button
+                    onClick={() => setSimulationStep('structural')}
+                    className="mt-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Edit Structural Elements
+                  </button>
+                </div>
+                
                 <StructuralMaterialsForm 
                   onSubmit={handleMaterialsSubmit} 
                   activeMaterial={buildingParams.materialType}
-                  initialStructuralElements={buildingParams.structuralComponents}
                 />
                 
                 <div className="mt-6">
@@ -252,17 +307,7 @@ export default function Home() {
                   elapsedTime={elapsedTime}
                 />
                 
-                <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                  <h3 className="font-bold mb-2">Simulation Controls</h3>
-                  <SimulationControls
-                    isRunning={elapsedTime < seismicParams.duration}
-                    elapsedTime={elapsedTime}
-                    duration={seismicParams.duration}
-                    onStop={handleStopSimulation}
-                    onReplay={handleReplaySimulation}
-                    onReturnToSetup={handleReturnToSetup}
-                  />
-                </div>
+                {/* SimulationControls removed to avoid duplication with controls in SafeSimulator */}
                 
                 {elapsedTime >= seismicParams.duration && (
                   <div className="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -330,7 +375,7 @@ export default function Home() {
                   {simulationStep === 'building' ? (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
                       <button
-                        onClick={() => setSimulationStep('materials')}
+                        onClick={() => setSimulationStep('structural')}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -339,10 +384,16 @@ export default function Home() {
                         Continue to Materials
                       </button>
                     </div>
+                  ) : simulationStep === 'structural' ? (
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+                      <div className="text-center bg-black/30 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
+                        Configure structural elements on the left panel
+                      </div>
+                    </div>
                   ) : simulationStep === 'materials' ? (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
                       <div className="text-center bg-black/30 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
-                        Configure materials and structural elements on the left panel
+                        Configure materials properties on the left panel
                       </div>
                     </div>
                   ) : null}
@@ -353,28 +404,102 @@ export default function Home() {
                     preferBasicMode={preferBasicMode}
                     onStop={simulationStep === 'running' ? handleStopSimulation : undefined}
                     onRestart={simulationStep === 'running' ? handleReplaySimulation : undefined}
-                    materialsParams={simulationStep === 'materials' ? materialsParams : {
+                    materialsParams={materialsParams || {
                       concrete: {
                         compressiveStrength: 30,
                         tensileStrength: 3,
                         elasticModulus: 25,
-                        reinforcementType: 'standard'
+                        reinforcementType: 'standard',
+                        structuralSystemType: 'frame',
+                        dampingRatio: 5,
+                        poissonsRatio: 0.2,
+                        thermalExpansionCoeff: 10,
+                        creepCoefficient: 2.0,
+                        shrinkageStrain: 0.5,
+                        codeCompliance: 'ACI-318'
                       },
                       steel: {
                         yieldStrength: 350,
                         tensileStrength: 450,
                         elasticModulus: 200,
-                        connectionType: 'welded'
+                        connectionType: 'welded',
+                        structuralSystemType: 'moment-frame',
+                        dampingRatio: 2,
+                        poissonsRatio: 0.3,
+                        thermalExpansionCoeff: 12,
+                        fatigueCategory: 'high-cycle',
+                        fractureClass: 'B',
+                        codeCompliance: 'AISC-360'
                       },
                       wood: {
                         bendingStrength: 20,
                         compressionStrength: 15,
                         elasticModulus: 10,
-                        gradeType: 'structural'
+                        gradeType: 'structural',
+                        structuralSystemType: 'light-frame',
+                        dampingRatio: 7,
+                        poissonsRatio: 0.25,
+                        moistureContent: 12,
+                        shrinkageCoefficient: 0.2,
+                        durabilityClass: '2',
+                        codeCompliance: 'NDS'
                       },
                       activeMaterial: buildingParams.materialType
                     }}
                   />
+                  
+                  {/* Enhanced Simulation Capabilities */}
+                  {simulationStep === 'running' && (
+                    <div className="mt-6">
+                      <EnhancedSimulationCapabilities
+                        initialSeismicParams={seismicParams}
+                        initialBuildingParams={buildingParams}
+                        initialStructuralElements={buildingParams.structuralComponents || {}}
+                        initialMaterialsParams={materialsParams || {
+                          concrete: {
+                            compressiveStrength: 30,
+                            tensileStrength: 3,
+                            elasticModulus: 25,
+                            reinforcementType: 'standard',
+                            structuralSystemType: 'frame',
+                            dampingRatio: 5,
+                            poissonsRatio: 0.2,
+                            thermalExpansionCoeff: 10,
+                            creepCoefficient: 2.0,
+                            shrinkageStrain: 0.5,
+                            codeCompliance: 'ACI-318'
+                          },
+                          steel: {
+                            yieldStrength: 350,
+                            tensileStrength: 450,
+                            elasticModulus: 200,
+                            connectionType: 'welded',
+                            structuralSystemType: 'moment-frame',
+                            dampingRatio: 2,
+                            poissonsRatio: 0.3,
+                            thermalExpansionCoeff: 12,
+                            fatigueCategory: 'high-cycle',
+                            fractureClass: 'B',
+                            codeCompliance: 'AISC-360'
+                          },
+                          wood: {
+                            bendingStrength: 20,
+                            compressionStrength: 15,
+                            elasticModulus: 10,
+                            gradeType: 'structural',
+                            structuralSystemType: 'light-frame',
+                            dampingRatio: 7,
+                            poissonsRatio: 0.25,
+                            moistureContent: 12,
+                            shrinkageCoefficient: 0.2,
+                            durabilityClass: '2',
+                            codeCompliance: 'NDS'
+                          },
+                          activeMaterial: buildingParams.materialType
+                        }}
+                      />
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-center p-8">
@@ -384,7 +509,11 @@ export default function Home() {
                       ? 'Start by setting earthquake parameters on the left panel'
                       : simulationStep === 'building'
                         ? 'Now configure building properties to see how they respond to the earthquake'
-                        : 'Configure material properties to fine-tune the building response'}
+                        : simulationStep === 'structural'
+                          ? 'Configure structural elements to define the building framework'
+                          : simulationStep === 'materials'
+                            ? 'Configure material properties to fine-tune the building response'
+                            : 'Running simulation and analyzing results'}
                   </p>
                   <div className="flex flex-wrap justify-center gap-6 text-left">
                     <div className="bg-gray-100 dark:bg-gray-700 p-5 rounded-lg max-w-xs shadow-md">
@@ -401,8 +530,9 @@ export default function Home() {
                       <ul className="list-disc list-inside text-sm space-y-2">
                         <li>Step 1: Set earthquake parameters</li>
                         <li>Step 2: Configure building properties</li>
-                        <li>Step 3: Define structural materials</li>
-                        <li>Step 4: Run simulation and analyze results</li>
+                        <li>Step 3: Define structural elements</li>
+                        <li>Step 4: Define structural materials</li>
+                        <li>Step 5: Run simulation and analyze results</li>
                       </ul>
                     </div>
                   </div>

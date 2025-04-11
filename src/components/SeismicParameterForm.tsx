@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import HistoricalEarthquakePresets, { historicalEarthquakes } from './HistoricalEarthquakePresets';
 
 export type SeismicParams = {
   magnitude: number;
@@ -7,6 +8,7 @@ export type SeismicParams = {
   epicenterY: number;
   waveVelocity: number;
   duration: number;
+  distance: number;
   showGrid: boolean;
   showStats: boolean;
 };
@@ -18,6 +20,7 @@ const defaultParams: SeismicParams = {
   epicenterY: 0,
   waveVelocity: 1.5,
   duration: 60,
+  distance: 50, // Default distance in km
   showGrid: true,
   showStats: false,
 };
@@ -55,7 +58,19 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
     <form onSubmit={handleSubmit} className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-xl font-bold mb-4">Seismic Simulation Parameters</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Historical Earthquake Presets */}
+      <div className="mb-6">
+        <h3 className="text-md font-semibold mb-2">Choose from Historical Earthquakes</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Select a preset to automatically configure parameters based on historical earthquake data.
+        </p>
+        <HistoricalEarthquakePresets onSelect={setParams} />
+      </div>
+      
+      <div className="border-t border-gray-200 dark:border-gray-700 my-6 pt-6">
+        <h3 className="text-md font-semibold mb-4">Or Customize Parameters Manually</h3>
+      
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="magnitude" className="block mb-1 font-medium">
             Magnitude (1-10)
@@ -143,6 +158,23 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
         </div>
         
         <div>
+          <label htmlFor="distance" className="block mb-1 font-medium">
+            Distance (km)
+          </label>
+          <input
+            type="number"
+            id="distance"
+            name="distance"
+            min="10"
+            max="200"
+            step="5"
+            value={params.distance}
+            onChange={handleChange}
+            className="w-full"
+          />
+        </div>
+        
+        <div>
           <label htmlFor="duration" className="block mb-1 font-medium">
             Duration (seconds)
           </label>
@@ -160,7 +192,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
         </div>
       </div>
       
-      <div className="flex flex-col space-y-2">
+        <div className="flex flex-col space-y-2">
         <div className="flex items-center">
           <input
             type="checkbox"
@@ -197,6 +229,7 @@ export default function SeismicParameterForm({ onSubmit, initialParams = {} }: S
         >
           Start Simulation
         </button>
+      </div>
       </div>
     </form>
   );

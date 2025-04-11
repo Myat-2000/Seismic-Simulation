@@ -754,10 +754,7 @@ export default function StructuralMaterialsForm({
       </div>
     </form>
     
-    <StructuralElementForm
-      onSubmit={handleStructuralElementSubmit}
-      initialParams={structuralElements}
-    />
+
     </div>
   );
 }

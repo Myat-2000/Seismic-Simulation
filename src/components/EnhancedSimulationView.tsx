@@ -5,7 +5,6 @@ import { SeismicParams } from './SeismicParameterForm';
 import { StructuralMaterialsParams } from './StructuralMaterialsForm';
 import EnhancedSimulationControls from './EnhancedSimulationControls';
 import ConfigurationManager from './ConfigurationManager';
-import SimulationComparisonView from './SimulationComparisonView';
 import { ElementInteraction, InteractionAnalysisResult } from './StructuralElementInteraction';
 import { DetailedBuildingParams } from './StructuralComponentAnalysis';
 
@@ -70,22 +69,6 @@ export default function EnhancedSimulationView({
   const [showDeformation, setShowDeformation] = useState<boolean>(true);
   const [deformationScale, setDeformationScale] = useState<number>(1.0);
   
-  // State for saved simulation results
-  const [savedResults, setSavedResults] = useState<SimulationResult[]>([]);
-  
-  // Load saved simulation results from localStorage
-  useEffect(() => {
-    const savedResultsJson = localStorage.getItem('seismicSimulationResults');
-    if (savedResultsJson) {
-      try {
-        const results = JSON.parse(savedResultsJson);
-        setSavedResults(results);
-      } catch (e) {
-        console.error('Failed to parse saved simulation results', e);
-      }
-    }
-  }, []);
-  
   // Calculate available elements for selection
   const availableElements = {
     columns: Array.from({ length: 10 }, (_, i) => i + 1), // Example: 10 columns
@@ -135,23 +118,7 @@ export default function EnhancedSimulationView({
     setSelectedElement(element);
   };
   
-  // Save current simulation result
-  const saveSimulationResult = (name: string) => {
-    const newResult: SimulationResult = {
-      id: Date.now().toString(),
-      name,
-      buildingParams,
-      seismicParams,
-      results: {
-        ...simulationAnalysisResult,
-        hasCollapsed: simulationAnalysisResult.damageIndex > 0.8
-      }
-    };
-    
-    const updatedResults = [...savedResults, newResult];
-    setSavedResults(updatedResults);
-    localStorage.setItem('seismicSimulationResults', JSON.stringify(updatedResults));
-  };
+
   
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -178,17 +145,7 @@ export default function EnhancedSimulationView({
           )}
         </div>
         
-        {/* Save simulation result button (only shown when simulation is complete) */}
-        {isSimulationComplete && (
-          <div className="mt-4">
-            <button
-              onClick={() => saveSimulationResult(`Simulation ${savedResults.length + 1}`)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Save Simulation Result
-            </button>
-          </div>
-        )}
+
       </div>
       
       {/* Controls and analysis panel */}
@@ -208,10 +165,7 @@ export default function EnhancedSimulationView({
           currentMaterialParams={materialParams}
           onLoadConfiguration={onLoadConfiguration}
         />
-        
-        {savedResults.length > 0 && (
-          <SimulationComparisonView savedResults={savedResults} />
-        )}
+
       </div>
     </div>
   );

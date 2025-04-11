@@ -6,6 +6,7 @@ import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { BuildingParams } from "./BuildingParameterForm";
 import { SeismicParams } from "./SeismicParameterForm";
 import { StructuralMaterialsParams } from './StructuralMaterialsForm';
+import { optimizeMesh, isInViewFrustum, applyDistanceBasedLOD } from "../utils/renderOptimization";
 import { Vector3, Euler } from 'three';
 
 // Define types
@@ -35,7 +36,7 @@ function FloorPiece({
   // Calculate physics for collapse animation
   const animatedPosition = useMemo(() => {
     const [x, y, z] = position;
-    if (collapseIntensity <= 0) return [x, y, z];
+    if (collapseIntensity <= 0) return [x, y, z] as [number, number, number];
     
     // Apply gravity and add some randomness for realistic collapse
     const progress = Math.max(0, collapseIntensity - delay);
@@ -51,11 +52,11 @@ function FloorPiece({
   // Calculate rotation during collapse
   const animatedRotation = useMemo(() => {
     const [rx, ry, rz] = rotation;
-    if (collapseIntensity <= 0) return [rx, ry, rz];
+    if (collapseIntensity <= 0) return [rx, ry, rz] as [number, number, number];
     
     // Apply rotation during collapse for more realistic effect
     const progress = Math.max(0, collapseIntensity - delay);
-    if (progress <= 0) return [rx, ry, rz];
+    if (progress <= 0) return [rx, ry, rz] as [number, number, number];
     
     // Add rotation based on position (different for each piece)
     const rotX = rx + Math.sin(position[0] * 0.5) * progress * 2;
@@ -179,12 +180,12 @@ function DetailedBuilding({
         const delayValue = delayFactor * 0.5; // 0.5 seconds delay from top to bottom
         
         pieces.push({
-          position: [posX, posY, posZ],
+          position: [posX, posY, posZ] as [number, number, number],
           size: [
             sectionWidth * 0.9 * sizeVariation, 
             sectionHeight * 0.9 * sizeVariation, 
             sectionDepth * 0.9 * sizeVariation
-          ],
+          ] as [number, number, number],
           color: buildingColor,
           delay: delayValue,
           id: `piece-${x}-${y}-${z}`
@@ -210,10 +211,10 @@ function DetailedBuilding({
       {pieces.map((piece) => (
         <FloorPiece
           key={piece.id}
-          position={piece.position}
-          size={piece.size}
+          position={piece.position as [number, number, number]}
+          size={piece.size as [number, number, number]}
           color={piece.color}
-          rotation={[0, 0, 0]}
+          rotation={[0, 0, 0] as [number, number, number]}
           collapseIntensity={collapseProgress}
           delay={piece.delay}
         />

@@ -4,16 +4,19 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Stats, Environment, Grid } from "@react-three/drei";
 import { BuildingParams } from "./BuildingParameterForm";
 import { SeismicParams } from "./SeismicParameterForm";
-import BuildingVisualizer from "./BuildingVisualizer";
+import BuildingVisualizer from "./OptimizedBuildingVisualizer";
 import GroundWaveEffect from "./GroundWaveEffect";
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as THREE from 'three';
 import { WebGLRenderer } from 'three';
 
+import { StructuralMaterialsParams } from './StructuralMaterialsForm';
+
 type CombinedSimulatorProps = {
   buildingParams: BuildingParams;
   seismicParams: SeismicParams;
   elapsedTime: number;
+  materialsParams?: StructuralMaterialsParams;
 };
 
 // Simple ground plane instead of dynamic ground
@@ -122,7 +125,8 @@ function usePerformanceMode() {
 export default function CombinedSimulator({
   buildingParams,
   seismicParams,
-  elapsedTime
+  elapsedTime,
+  materialsParams
 }: CombinedSimulatorProps) {
   // Camera position state with modified view options (removed seismic)
   const [cameraView, setCameraView] = useState<"building" | "combined" | "damage">("building");
@@ -449,6 +453,8 @@ export default function CombinedSimulator({
           buildingParams={buildingParams}
           seismicParams={seismicParams}
           elapsedTime={elapsedTime * simulationSpeed}
+          materialsParams={materialsParams}
+          seismicIntensity={seismicParams.magnitude / 5} // Scale seismic intensity based on magnitude
         />
         
         {/* Environment for better lighting */}

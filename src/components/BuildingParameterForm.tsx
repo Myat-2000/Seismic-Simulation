@@ -218,10 +218,7 @@ export default function BuildingParameterForm({ onSubmit, initialParams = {} }: 
       </div>
       </form>
       
-      <StructuralElementForm
-        onSubmit={handleStructuralElementSubmit}
-        initialParams={params.structuralComponents}
-      />
+      
     </div>
   );
 }
