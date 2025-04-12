@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BuildingParams } from './BuildingParameterForm';
 import { SeismicParams } from './SeismicParameterForm';
 import { Button } from './ui/FormComponents';
@@ -12,6 +12,8 @@ type AnalysisStep = {
     id: number;
   };
   recommendation?: string;
+  visualizationType?: 'bar-chart' | 'comparison' | 'stress-map' | 'timeline';
+  visualizationData?: any;
 };
 
 type SimulationAnalysisResult = {
@@ -269,75 +271,23 @@ export default function GuidedAnalysisTour({
     );
   }
 
-  return (
-    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all hover:shadow-lg">
-      <h3 className="font-bold mb-3 text-gray-900 dark:text-gray-100">Guided Analysis Tour</h3>
-      
-      {!tourStarted ? (
-        <div className="space-y-4">
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
-            Take a guided tour through the simulation results to understand key findings and recommendations.
-          </p>
-          <Button onClick={startTour} variant="primary">
-            Start Guided Tour
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Step {currentStep + 1} of {analysisSteps.length}
-            </span>
-            <Button onClick={endTour} variant="secondary" size="sm">
-              Exit Tour
-            </Button>
-          </div>
-          
-          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <h4 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">
-              {analysisSteps[currentStep]?.title}
-            </h4>
-            <p className="text-gray-700 dark:text-gray-300 mb-4">
-              {analysisSteps[currentStep]?.description}
-            </p>
-            
-            {analysisSteps[currentStep]?.recommendation && (
-              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded">
-                <h5 className="font-semibold text-blue-700 dark:text-blue-300 mb-1">Recommendation</h5>
-                <p className="text-blue-600 dark:text-blue-200 text-sm">
-                  {analysisSteps[currentStep].recommendation}
-                </p>
-              </div>
-            )}
-            
-            {analysisSteps[currentStep]?.elementHighlight && (
-              <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 rounded text-sm">
-                <span className="font-medium text-amber-700 dark:text-amber-300">
-                  Highlighted: {analysisSteps[currentStep].elementHighlight.type.charAt(0).toUpperCase() + 
-                  analysisSteps[currentStep].elementHighlight.type.slice(1)} {analysisSteps[currentStep].elementHighlight.id}
-                </span>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-between">
-            <Button 
-              onClick={prevStep} 
-              variant="secondary" 
-              disabled={currentStep === 0}
-            >
-              Previous
-            </Button>
-            <Button 
-              onClick={nextStep} 
-              variant="primary" 
-              disabled={currentStep === analysisSteps.length - 1}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  // Reference for the chart container
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  // Function to render a simple bar chart using DOM elements
+  const renderBarChart = (data: { labels: string[], values: number[], title: string, description: string }) => {
+    if (!chartRef.current) return;
+    
+    const maxValue = Math.max(...data.values);
+    const chartHtml = `
+      <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">${data.title}</div>
+      <div class="space-y-2">
+        ${data.labels.map((label, index) => {
+          const percentage = (data.values[index] / maxValue) * 100;
+          return `
+            <div class="flex items-center">
+              <div class="w-24 text-xs text-gray-600 dark:text-gray-400">${label}</div>
+              <div class="flex-1 h-5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                <div 
+                  class="
 }
