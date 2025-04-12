@@ -39,27 +39,34 @@ type EnhancedDeformationVisualizerProps = {
 };
 
 // Color scale for stress visualization
-const getStressColor = (stress: number, maxStress: number): THREE.Color => {
-  // Prevent division by zero
-  if (maxStress === 0) return new THREE.Color(0x0000ff); // Default blue for zero stress
+const getStressColor = (stress: number, maxStress: number, materialType: string = 'concrete'): THREE.Color => {
+  // Prevent division by zero and handle invalid stress values
+  if (maxStress <= 0 || isNaN(stress)) return new THREE.Color(0x0000ff); // Default blue for zero/invalid stress
   
-  // Color gradient: Blue (low stress) -> Green -> Yellow -> Red (high stress)
-  const t = Math.min(stress / maxStress, 1);
+  // Normalize stress value with material-specific factors
+  const materialFactor = materialType === 'steel' ? 1.5 : 1.0; // Steel can handle higher stress
+  const normalizedStress = Math.min(stress / (maxStress * materialFactor), 1);
+  
+  // Enhanced color gradient with better visual distinction
+  const t = Math.pow(normalizedStress, 0.7); // Non-linear scaling for better visual range
   
   if (t <= 0.33) {
-    return new THREE.Color().setHSL(0.6, 1, 0.5).lerp(
-      new THREE.Color().setHSL(0.3, 1, 0.5),
+    // Cool colors for low stress (Blue to Cyan to Green)
+    return new THREE.Color().setHSL(0.6, 0.8, 0.5).lerp(
+      new THREE.Color().setHSL(0.3, 0.9, 0.5),
       t * 3
     );
   } else if (t <= 0.66) {
-    return new THREE.Color().setHSL(0.3, 1, 0.5).lerp(
+    // Transition colors (Green to Yellow)
+    return new THREE.Color().setHSL(0.3, 0.9, 0.5).lerp(
       new THREE.Color().setHSL(0.15, 1, 0.5),
       (t - 0.33) * 3
     );
   } else {
+    // Warm colors for high stress (Yellow to Orange to Red)
     return new THREE.Color().setHSL(0.15, 1, 0.5).lerp(
-      new THREE.Color().setHSL(0, 1, 0.5),
-      (t - 0.66) * 3
+      new THREE.Color().setHSL(0, 1, 0.6),
+      Math.pow((t - 0.66) * 3, 1.2) // Enhanced contrast for critical stress levels
     );
   }
 };
@@ -71,18 +78,27 @@ const calculateDeformedPosition = (
     displacement: number;
     rotation: number;
   },
-  scale: number
+  scale: number,
+  seismicIntensity: number = 1.0
 ): THREE.Vector3 => {
   // Create a new vector to avoid modifying the original
   const deformed = originalPosition.clone();
   
-  // Apply displacement with safety checks
+  // Apply displacement with safety checks and seismic intensity factor
   if (deformation && typeof deformation.displacement === 'number' && typeof deformation.rotation === 'number') {
+    // Calculate horizontal and vertical components
+    const horizontalDisp = Math.sin(deformation.rotation) * deformation.displacement * scale * seismicIntensity;
+    const verticalDisp = Math.cos(deformation.rotation) * deformation.displacement * scale * seismicIntensity;
+    
+    // Apply non-linear damping for large displacements
+    const dampingFactor = 1 / (1 + Math.abs(horizontalDisp) * 0.1);
+    
     deformed.add(
       new THREE.Vector3(
-        Math.sin(deformation.rotation) * deformation.displacement * scale,
-        Math.cos(deformation.rotation) * deformation.displacement * scale,
-        0
+        horizontalDisp * dampingFactor,
+        verticalDisp * dampingFactor,
+        // Add small Z-axis movement for more realistic behavior
+        Math.sin(deformation.rotation * 2) * scale * seismicIntensity * 0.1
       )
     );
   }

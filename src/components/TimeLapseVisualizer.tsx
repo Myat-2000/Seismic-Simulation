@@ -123,56 +123,107 @@ export default function TimeLapseVisualizer({
     setSnapshots(newSnapshots);
   }, [seismicParams.duration]);
 
-  // Animation loop for continuous playback
+  // Enhanced animation loop with smooth transitions and interpolation
+  // Memoize snapshot search function to prevent recreating on every frame
+  const findNearestSnapshot = React.useCallback((time: number) => {
+    return snapshots.reduce((nearest, snapshot) => {
+      const currentDiff = Math.abs(snapshot.timePoint - time);
+      const nearestDiff = Math.abs(nearest.timePoint - time);
+      return currentDiff < nearestDiff ? snapshot : nearest;
+    }, snapshots[0]);
+  }, [snapshots]);
+
+  // Enhanced animation loop with improved timing and cleanup
   useEffect(() => {
-    if (isPlaying) {
-      let lastTime = performance.now();
+    if (!isPlaying) return;
+
+    let frameId: number | null = null;
+    let lastTime = performance.now();
+    let accumulatedTime = 0;
+    
+    const animate = (time: number) => {
+      const deltaTime = Math.min(time - lastTime, 50); // Cap delta time to prevent large jumps
+      lastTime = time;
+      accumulatedTime += deltaTime;
       
-      const animate = (time: number) => {
-        const deltaTime = time - lastTime;
-        lastTime = time;
-        
+      // Fixed timestep for consistent animation (60fps)
+      const timeStep = 16.67;
+      const maxSteps = 3; // Reduced from 5 to prevent potential lag
+      let steps = 0;
+      
+      while (accumulatedTime >= timeStep && steps < maxSteps) {
         setCurrentTime(prevTime => {
-          const newTime = prevTime + (deltaTime / 1000) * playbackSpeed;
+          const newTime = prevTime + (timeStep / 1000) * playbackSpeed;
+          
+          // Find nearest snapshot using memoized function
+          const nearestSnapshot = findNearestSnapshot(newTime);
+          
+          if (nearestSnapshot && Math.abs(nearestSnapshot.timePoint - newTime) < 0.1) {
+            return nearestSnapshot.timePoint;
+          }
+          
           // Loop back to beginning if we reach the end
           return newTime >= seismicParams.duration ? 0 : newTime;
         });
         
-        animationRef.current = requestAnimationFrame(animate);
-      };
+        accumulatedTime -= timeStep;
+        steps++;
+      }
       
-      animationRef.current = requestAnimationFrame(animate);
+      // Reset accumulated time if we hit the step limit
+      if (steps >= maxSteps) {
+        accumulatedTime = 0;
+      }
       
-      return () => {
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-      };
-    }
-  }, [isPlaying, playbackSpeed, seismicParams.duration]);
+      frameId = requestAnimationFrame(animate);
+    };
+    
+    frameId = requestAnimationFrame(animate);
+    
+    // Cleanup function
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [isPlaying, playbackSpeed, seismicParams.duration, findNearestSnapshot]); // Added findNearestSnapshot to dependencies
 
-  // Calculate seismic intensity based on current time
+  // Enhanced seismic intensity calculation with improved physics modeling
   const calculateSeismicIntensity = () => {
-    // If a snapshot is selected, use its intensity
+    // If a snapshot is selected, use its intensity with smooth interpolation
     if (selectedSnapshot !== null) {
-      return snapshots[selectedSnapshot].seismicIntensity;
+      const snapshot = snapshots[selectedSnapshot];
+      const timeDiff = Math.abs(currentTime - snapshot.timePoint);
+      if (timeDiff < 0.5) { // Smooth transition within 0.5s of snapshot
+        const t = 1 - (timeDiff / 0.5);
+        return snapshot.seismicIntensity * t + calculateContinuousIntensity() * (1 - t);
+      }
+      return snapshot.seismicIntensity;
     }
     
-    // For continuous mode, calculate based on current time
+    return calculateContinuousIntensity();
+  };
+
+  // Separate function for continuous intensity calculation
+  const calculateContinuousIntensity = () => {
+    // Normalize time progress with improved curve
     const timeProgress = Math.min(currentTime / (seismicParams.duration * 0.6), 1);
     
-    // Create a bell curve effect for the intensity over time
-    const intensityBase = timeProgress < 0.5 
-      ? 2 * Math.pow(timeProgress, 2) 
-      : 1 - 2 * Math.pow(timeProgress - 1, 2);
+    // Enhanced bell curve with more realistic wave propagation
+    const intensityBase = timeProgress < 0.5
+      ? 4 * Math.pow(timeProgress, 2) * (1 - timeProgress)
+      : 4 * Math.pow(1 - timeProgress, 2) * timeProgress;
     
-    // Factor in earthquake parameters
-    const magnitudeFactor = Math.pow(10, seismicParams.magnitude - 5) / 10;
-    const distanceFactor = 100 / (seismicParams.distance + 10);
-    const depthFactor = 50 / (seismicParams.depth + 5);
+    // Improved earthquake parameter factors
+    const magnitudeFactor = Math.pow(10, (seismicParams.magnitude - 4) / 2) / 10;
+    const distanceFactor = Math.exp(-seismicParams.distance / 100);
+    const depthFactor = Math.exp(-seismicParams.depth / 50);
     
-    // Combine factors and normalize to a 0-1 scale
-    let intensity = intensityBase * magnitudeFactor * distanceFactor * depthFactor;
+    // Add frequency modulation for more realistic shaking
+    const frequencyMod = Math.sin(currentTime * 10) * 0.1 + 1;
+    
+    // Combine factors with improved normalization
+    const intensity = intensityBase * magnitudeFactor * distanceFactor * depthFactor * frequencyMod;
     return Math.min(Math.max(intensity, 0), 1);
   };
 

@@ -3,6 +3,7 @@ import { BuildingParams } from './BuildingParameterForm';
 import { SeismicParams } from './SeismicParameterForm';
 import { StructuralMaterialsParams } from './StructuralMaterialsForm';
 import { DetailedBuildingParams } from './StructuralComponentAnalysis';
+import InteractiveTimelineNavigator from './InteractiveTimelineNavigator';
 import dynamic from 'next/dynamic';
 
 // Use the enhanced structural deformation visualizer based on the memory about consolidated components
@@ -192,33 +193,57 @@ export default function EnhancedTimeLapseVisualizer({
     
     setSnapshots(newSnapshots);
   }, [seismicParams.duration]);
-
-  // Animation loop for continuous playback with improved timing
+  
+  // Generate thumbnail previews for snapshots
   useEffect(() => {
-    if (isPlaying) {
-      let lastTime = performance.now();
+    // In a real implementation, this would generate actual thumbnails
+    // For now, we'll just use the snapshot data as is
+    // This could be implemented with canvas or by taking screenshots of the 3D view
+  }, [snapshots]);
+
+  // Animation loop for continuous playback with improved timing and performance
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let frameId: number | null = null;
+    let lastTime = performance.now();
+    let accumulatedTime = 0;
+    
+    const animate = (time: number) => {
+      const deltaTime = Math.min(time - lastTime, 50); // Cap deltaTime to prevent jumps
+      lastTime = time;
+      accumulatedTime += deltaTime;
       
-      const animate = (time: number) => {
-        const deltaTime = time - lastTime;
-        lastTime = time;
-        
+      // Fixed timestep for consistent animation
+      const timeStep = 16.67; // ~60fps
+      const maxSteps = 3; // Limit max updates per frame
+      let steps = 0;
+      
+      while (accumulatedTime >= timeStep && steps < maxSteps) {
         setCurrentTime(prevTime => {
-          const newTime = prevTime + (deltaTime / 1000) * playbackSpeed;
-          // Loop back to beginning if we reach the end
+          const newTime = prevTime + (timeStep / 1000) * playbackSpeed;
           return newTime >= seismicParams.duration ? 0 : newTime;
         });
         
-        animationRef.current = requestAnimationFrame(animate);
-      };
+        accumulatedTime -= timeStep;
+        steps++;
+      }
       
-      animationRef.current = requestAnimationFrame(animate);
+      // Reset accumulated time if we hit the step limit
+      if (steps >= maxSteps) {
+        accumulatedTime = 0;
+      }
       
-      return () => {
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-      };
-    }
+      frameId = requestAnimationFrame(animate);
+    };
+    
+    frameId = requestAnimationFrame(animate);
+    
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
   }, [isPlaying, playbackSpeed, seismicParams.duration]);
 
   // Calculate seismic intensity based on current time with improved wave modeling
@@ -386,10 +411,21 @@ export default function EnhancedTimeLapseVisualizer({
             </div>
             
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600 dark:text-gray-300">Time:</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white">
-                {formatTime(currentTime)} / {formatTime(seismicParams.duration)}
-              </span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">View Mode:</span>
+              <div className="flex rounded-md overflow-hidden border border-gray-300 dark:border-gray-600">
+                <button 
+                  className={`px-3 py-1 text-xs ${viewMode === '3d' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+                  onClick={() => setViewMode('3d')}
+                >
+                  3D
+                </button>
+                <button 
+                  className={`px-3 py-1 text-xs ${viewMode === 'cross-section' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+                  onClick={() => setViewMode('cross-section')}
+                >
+                  Cross-section
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -560,28 +596,60 @@ export default function EnhancedTimeLapseVisualizer({
         </div>
         
         <div className="space-y-4">
-          {/* Controls */}
+          {/* Interactive Timeline Navigator */}
           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">Playback Controls</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">Interactive Timeline</h3>
             
-            <div className="flex items-center justify-center space-x-4 mb-4">
-              <button
-                onClick={() => setCurrentTime(0)}
-                className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
-              >
-                ⏮
-              </button>
-              <button
-                onClick={() => setCurrentTime(Math.max(0, currentTime - 1))}
-                className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
-              >
-                ⏪
-              </button>
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="p-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                {isPlaying ? '⏸' : '▶'}
-              </button>
-              <button
-                onClick={() => setCurrentTime(Math.min(seismicParams.duration, current
+            <InteractiveTimelineNavigator
+              currentTime={currentTime}
+              duration={seismicParams.duration}
+              seismicParams={seismicParams}
+              onTimeChange={setCurrentTime}
+              onPlayPause={() => setIsPlaying(!isPlaying)}
+              isPlaying={isPlaying}
+              snapshots={snapshots}
+            />
+            
+            {/* Additional controls */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Deformation Scale: {deformationScale.toFixed(1)}x
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                  value={deformationScale}
+                  onChange={(e) => setDeformationScale(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500"
+                />
+              </div>
+              
+              <div className="flex flex-col space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Visualization Options
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setShowStressColors(!showStressColors)}
+                    className={`px-3 py-1 text-xs rounded-full ${showStressColors ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+                  >
+                    {showStressColors ? 'Hide Stress Colors' : 'Show Stress Colors'}
+                  </button>
+                  <button
+                    onClick={() => setShowWaveEffects(!showWaveEffects)}
+                    className={`px-3 py-1 text-xs rounded-full ${showWaveEffects ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+                  >
+                    {showWaveEffects ? 'Hide Wave Effects' : 'Show Wave Effects'}
+                  </button>
+                  <button
+                    onClick={() => setShowCriticalPoints(!showCriticalPoints)}
+                    className={`px-3 py-1 text-xs rounded-full ${showCriticalPoints ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+                  >
+                    {showCriticalPoints ? 'Hide Critical Points' : 'Show Critical Points'}
+                  </button>
+                </div>
+              </div>
+            </div>

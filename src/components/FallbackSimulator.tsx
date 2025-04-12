@@ -180,16 +180,17 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       ctx.fillText('2D Fallback Visualization (WebGL not available)', canvas.width - 300, canvas.height - 20);
       
       // Continue animation
-      animationRef.current = requestAnimationFrame(render);
+      frameId = requestAnimationFrame(render);
     };
     
-    // Start animation
-    render();
+    // Start animation loop
+    animationRef.current = requestAnimationFrame(render);
     
-    // Cleanup
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      cancelAnimationFrame(animationRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
     };
   }, [buildingParams, seismicParams, elapsedTime]); // Dependencies are correct
   
