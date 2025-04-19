@@ -179,8 +179,8 @@ export default function FallbackSimulator({ buildingParams, seismicParams, elaps
       ctx.font = '12px Arial';
       ctx.fillText('2D Fallback Visualization (WebGL not available)', canvas.width - 300, canvas.height - 20);
       
-      // Continue animation
-      frameId = requestAnimationFrame(render);
+      // Continue animation - Fix: Properly declare frameId to prevent memory leaks
+      animationRef.current = requestAnimationFrame(render);
     };
     
     // Start animation loop
